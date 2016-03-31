@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D94392DB1CA39140004DA841 /* LXMTransformableTableViewCell.m in Sources */ = {isa = PBXBuildFile; fileRef = D94392DA1CA39140004DA841 /* LXMTransformableTableViewCell.m */; };
+		D94392DF1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = D94392DE1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m */; };
 		D97AE6AC1CA0D19200220937 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = D97AE6AB1CA0D19200220937 /* main.m */; };
 		D97AE6AF1CA0D19200220937 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = D97AE6AE1CA0D19200220937 /* AppDelegate.m */; };
 		D97AE6B21CA0D19200220937 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = D97AE6B11CA0D19200220937 /* ViewController.m */; };
@@ -14,6 +16,7 @@
 		D97AE6B71CA0D19200220937 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D97AE6B61CA0D19200220937 /* Assets.xcassets */; };
 		D97AE6BA1CA0D19200220937 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D97AE6B81CA0D19200220937 /* LaunchScreen.storyboard */; };
 		D97AE6C51CA0D19200220937 /* LXM_s_Gesture_RecoginizerUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = D97AE6C41CA0D19200220937 /* LXM_s_Gesture_RecoginizerUITests.m */; };
+		D97AE6D41CA0D21F00220937 /* LXMTableViewGestureRecognizer.m in Sources */ = {isa = PBXBuildFile; fileRef = D97AE6D31CA0D21F00220937 /* LXMTableViewGestureRecognizer.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,6 +30,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		D94392D91CA39140004DA841 /* LXMTransformableTableViewCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LXMTransformableTableViewCell.h; sourceTree = "<group>"; };
+		D94392DA1CA39140004DA841 /* LXMTransformableTableViewCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LXMTransformableTableViewCell.m; sourceTree = "<group>"; };
+		D94392DD1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "UIColor+LXMTableViewGestureRecognizerHelper.h"; sourceTree = "<group>"; };
+		D94392DE1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "UIColor+LXMTableViewGestureRecognizerHelper.m"; sourceTree = "<group>"; };
 		D97AE6A71CA0D19200220937 /* LXM's Gesture Recoginizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LXM's Gesture Recoginizer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D97AE6AB1CA0D19200220937 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		D97AE6AD1CA0D19200220937 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -40,6 +47,9 @@
 		D97AE6C01CA0D19200220937 /* LXM's Gesture RecoginizerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "LXM's Gesture RecoginizerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D97AE6C41CA0D19200220937 /* LXM_s_Gesture_RecoginizerUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LXM_s_Gesture_RecoginizerUITests.m; sourceTree = "<group>"; };
 		D97AE6C61CA0D19200220937 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D97AE6D21CA0D21F00220937 /* LXMTableViewGestureRecognizer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LXMTableViewGestureRecognizer.h; sourceTree = "<group>"; };
+		D97AE6D31CA0D21F00220937 /* LXMTableViewGestureRecognizer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LXMTableViewGestureRecognizer.m; sourceTree = "<group>"; };
+		D97AE6D51CA0D34500220937 /* PrefixHeader.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +93,12 @@
 			children = (
 				D97AE6AD1CA0D19200220937 /* AppDelegate.h */,
 				D97AE6AE1CA0D19200220937 /* AppDelegate.m */,
+				D97AE6D21CA0D21F00220937 /* LXMTableViewGestureRecognizer.h */,
+				D97AE6D31CA0D21F00220937 /* LXMTableViewGestureRecognizer.m */,
+				D94392D91CA39140004DA841 /* LXMTransformableTableViewCell.h */,
+				D94392DA1CA39140004DA841 /* LXMTransformableTableViewCell.m */,
+				D94392DD1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.h */,
+				D94392DE1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m */,
 				D97AE6B01CA0D19200220937 /* ViewController.h */,
 				D97AE6B11CA0D19200220937 /* ViewController.m */,
 				D97AE6B31CA0D19200220937 /* Main.storyboard */,
@@ -98,6 +114,7 @@
 			isa = PBXGroup;
 			children = (
 				D97AE6AB1CA0D19200220937 /* main.m */,
+				D97AE6D51CA0D34500220937 /* PrefixHeader.pch */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -212,8 +229,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				D97AE6B21CA0D19200220937 /* ViewController.m in Sources */,
+				D97AE6D41CA0D21F00220937 /* LXMTableViewGestureRecognizer.m in Sources */,
 				D97AE6AF1CA0D19200220937 /* AppDelegate.m in Sources */,
 				D97AE6AC1CA0D19200220937 /* main.m in Sources */,
+				D94392DB1CA39140004DA841 /* LXMTransformableTableViewCell.m in Sources */,
+				D94392DF1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -339,6 +359,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				GCC_PREFIX_HEADER = "LXM's Gesture Recoginizer/PrefixHeader.pch";
 				INFOPLIST_FILE = "LXM's Gesture Recoginizer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.fly.LXM-s-Gesture-Recoginizer";
@@ -350,6 +371,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				GCC_PREFIX_HEADER = "LXM's Gesture Recoginizer/PrefixHeader.pch";
 				INFOPLIST_FILE = "LXM's Gesture Recoginizer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.fly.LXM-s-Gesture-Recoginizer";
@@ -400,6 +422,7 @@
 				D97AE6CB1CA0D19200220937 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		D97AE6CC1CA0D19200220937 /* Build configuration list for PBXNativeTarget "LXM's Gesture RecoginizerUITests" */ = {
 			isa = XCConfigurationList;
@@ -408,6 +431,7 @@
 				D97AE6CE1CA0D19200220937 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

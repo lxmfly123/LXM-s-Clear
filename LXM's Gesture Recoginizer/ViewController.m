@@ -7,41 +7,71 @@
 //
 
 #import "ViewController.h"
+#import "LXMGlobalSettings.h"
+#import "LXMAnimationQueue.h"
+#import "LXMTableViewCell.h"
 #import "LXMTableViewGestureRecognizer.h"
 #import "LXMTransformableTableViewCell.h"
+#import "LXMTableViewState.h"
+#import "LXMStrikeThroughText.h"
 #import "UIColor+LXMTableViewGestureRecognizerHelper.h"
 
-@interface ViewController () <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate>
+static NSString * const kAddingCell = @"Continue";
+static NSString * const kDoneCell = @"Done";
+static NSString * const kDummyCell = @"Dummy";
+static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
-@property (nonatomic, strong) NSMutableArray *rows;
+@interface ViewController () <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate, LXMTableViewCellDelegate>
+
 @property (nonatomic, strong) LXMTableViewGestureRecognizer *tableViewRecognizer;
-// TODO: @property (nonamatic, strong) id grabbedObject
+@property (nonatomic, weak) LXMTableViewState *tableViewState;
+@property (nonatomic, strong) NSMutableArray<LXMTodoItem *> *todoItems;
+@property (nonatomic, assign) NSTimeInterval keyboardAnimationDuration;
+@property (nonatomic, assign) UIViewAnimationCurve keyboardAnimationCurve;
+/// 长按时要移动的项目。
+@property (nonatomic, strong) LXMTodoItem *grabbedTodoItem;
 
-- (void)moveRowToBottomFromIndexPath:(NSIndexPath *)indexPath;
+@property (nonatomic, strong) CADisplayLink *displayLink;
 
 @end
-
-static const NSString *kAddingCell = @"Continue";
-static const NSString *kDoneCell = @"Done";
-static const NSString *kDummyCell = @"Dummy";
-static const CGFloat kCommitingCreateCellHeight = 60.0f;
-static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 @implementation ViewController
 
 #pragma mark view lifecycle
+
 - (void)viewDidLoad {
+  
   [super viewDidLoad];
-  self.rows = [@[@"右划完成", 
-                 @"左划删除", 
-                 @"Pinch 新建", 
-                 @"向下拖动新建", 
-                 @"长按移动", ] mutableCopy];
-  self.tableViewRecognizer = [self.tableView enableGestureTableViewWithDelegate:self];
+  
+  self.todoItems = [[NSMutableArray alloc] initWithCapacity:10];
+  NSArray *array = @[@"右划完成", 
+                    @"左划删除", 
+                    @"Pinch 新建", 
+                    @"向下拖动新建", 
+                    @"长按移动"];
+  [array enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    [self.todoItems addObject:[LXMTodoItem todoItemWithText:obj]];
+  }];
   
   self.tableView.backgroundColor = [UIColor blackColor];
-  self.tableView.rowHeight = kNormalCellFinishedHeight;
+  self.tableView.rowHeight = [LXMGlobalSettings sharedInstance].normalRowHeight;
   self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+  
+  self.tableViewState = [LXMTableViewState sharedInstance];
+  self.tableViewState.tableView = self.tableView;
+  
+  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+}
+
+- (void)keyboardWillShow:(NSNotification *)notification {
+  
+  _keyboardAnimationDuration = [notification.userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+  _keyboardAnimationCurve = [notification.userInfo[UIKeyboardAnimationCurveUserInfoKey] integerValue];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+  
+  self.tableViewRecognizer = [self.tableView enableGestureTableViewWithDelegate:self];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -49,116 +79,651 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   // Dispose of any resources that can be recreated.
 }
 
-#pragma mark methods
+#pragma mark - CADisplayLink
 
-//- (void)moveRowToBottomFromIndexPath:(NSIndexPath *)indexPath {
-//  [self.tableView beginUpdates];
-//  id row = self.rows[indexPath.row];
-//  [self.rows removeObjectAtIndex:indexPath.row];
-//  [self.rows addObject:row];
-//  [self.tableView moveRowAtIndexPath:indexPath toIndexPath:[NSIndexPath indexPathForRow:self.rows.count - 1 inSection:0]];
-//  [self.tableView endUpdates];
-//}
+- (void)startAnimation{
+  //  self.displayLink.beginTime = CACurrentMediaTime();
+  if (!self.displayLink) {
+    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(test:)];
+  }
+  self.displayLink.paused = NO;
+  [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+}
 
-#pragma mark UITableViewDataSource
+- (void)stopAnimation{
+  self.displayLink.paused = YES;
+  [self.displayLink invalidate];
+  self.displayLink = nil;
+  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    obj.layer.transform = CATransform3DIdentity;
+  }];
+  self.tableView.contentOffset = self.tableViewState.lastContentOffset;
+  self.tableView.contentInset = self.tableViewState.lastContentInset;
+}
+
+- (void)test:(CADisplayLink *)displayLink {
+
+  LXMPullDownTransformableTableViewCell *theCell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+//  NSLog(@"%@", theCell);
+  CALayer *presentationLayer = theCell.transformableView.layer.presentationLayer;
+  
+//  static UIView *view;
+//  view = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 100, self.tableView.rowHeight)];
+//  view.layer.anchorPoint = CGPointMake(0.5, 1);
+//  CATransform3D identity = CATransform3DIdentity;
+//  identity.m34 = -1 / 500.0f;
+//  CATransform3D transform = CATransform3DRotate(identity, acos(presentationLayer.transform.m22), 1, 0, 0);
+//  view.layer.transform = transform;
+  
+//  self.tableView.contentOffset = CGPointMake(0, self.tableViewState.lastContentOffset.y + (theCell.frame.size.height - view.frame.size.height));
+//  self.tableView.contentOffset = CGPointMake(0, self.tableViewState.lastContentOffset.y + presentationLayer.frame.origin.y);
+//  theCell.frame = CGRectOffset(theCell.frame, 0, -(theCell.frame.size.height - presentationLayer.frame.size.height));
+//  theCell.transform = CGAffineTransformMakeTranslation(0, -(theCell.frame.size.height - presentationLayer.frame.size.height));
+//  theCell.layer.transform = CATransform3DTranslate(theCell.layer.transform, 0, -(theCell.frame.size.height - presentationLayer.frame.size.height), 0);
+//  theCell.layer.transform = CATransform3DMakeTranslation(0, -(theCell.frame.size.height - presentationLayer.frame.size.height), 0);
+  
+  CATransform3D transform = CATransform3DMakeTranslation(0, - presentationLayer.frame.origin.y, 0);
+  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    obj.layer.transform = transform;
+  }];
+
+  /*
+  NSInteger static counter = 1;
+  NSLog(@"%ld", counter++);
+  NSLog(@"%@", NSStringFromCGPoint(point));
+  
+  NSLog(@"view height: %f",theCell.transformableView.frame.size.height);
+  NSLog(@"layer height: %f", presentationLayer.frame.size.height);
+  NSLog(@"offset1: %f", theCell.frame.size.height - presentationLayer.frame.size.height);
+  NSLog(@"offset2: %f", self.tableView.contentOffset.y + 120);*/
+}
+
+#pragma mark - methods
+
+- (void)bounceRowAtIndex:(NSIndexPath *)indexPath check:(BOOL)shouldCheck {
+  
+  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+  NSIndexPath *destinationIndexPath;
+  
+  [self.tableViewState.bouncingCells insertObject:cell atIndex:0];
+  
+  if (shouldCheck) {
+    destinationIndexPath = [self moveDestinationIndexPathForRowAtIndexPath:indexPath];
+  }
+  
+  [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal 
+                        delay:0 
+       usingSpringWithDamping:0.6 
+        initialSpringVelocity:8 
+                      options:UIViewAnimationOptionCurveEaseInOut 
+                   animations:^{
+                     cell.actualContentView.frame = cell.contentView.frame;
+                     [cell.strikeThroughText setNeedsLayout];
+                   } 
+                   completion:^(BOOL finished) {
+                     if (shouldCheck) {
+                       NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+                       [self moveRowAtIndexPath:indexPath toIndexPath:destinationIndexPath];
+                     }
+//                     self.tableView.frame = 
+//                     CGRectMake(self.tableView.frame.origin.x, 
+//                                0, 
+//                                self.tableView.frame.size.width, 
+//                                self.tableView.frame.size.height - self.tableView.contentInset.top * 2);
+//                     self.tableView.contentInset = UIEdgeInsetsZero;
+                     [self.tableViewState.bouncingCells removeLastObject];
+                   }];
+}
+
+- (NSIndexPath *)moveDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  NSUInteger __block index = 0;
+  [self.todoItems enumerateObjectsUsingBlock:^(LXMTodoItem * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    if (!obj.isCompleted && (idx != indexPath.row)) {
+      ++index;
+    }
+  }];
+  
+  return [NSIndexPath indexPathForRow:index inSection:0];
+}
+
+- (void)bounceCell:(LXMTableViewCell *)cell check:(BOOL)shoulCheck {
+  
+  NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+  [self bounceRowAtIndex:indexPath check:shoulCheck];
+}
+
+- (void)moveCell:(LXMTableViewCell *)cell toIndexPath:(NSIndexPath *)newIndexPath {
+  
+  NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+  [self moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
+}
+
+- (void)moveRowAtIndexPath:(NSIndexPath *)indexPath toIndexPath:(NSIndexPath *)newIndexPath {
+  
+  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+  if (cell.todoItem.isCompleted) {
+    cell.actualContentView.backgroundColor = [self colorForRowAtIndexPath:indexPath];
+    cell.strikeThroughText.textColor = [self textColorForRowAtIndexPath:indexPath];
+  }
+  
+  [self.tableViewState.floatingCells insertObject:cell atIndex:0];
+  
+  void (^completionBlock)(void) = ^{
+    [self.tableViewState.floatingCells removeLastObject];
+    [[NSNotificationCenter defaultCenter] postNotificationName:LXMEditCompleteNotification object:self];
+    if (self.tableViewState.uneditableIndexPathes.count == 0) {
+//      self.tableView.frame = 
+//      CGRectMake(self.tableView.frame.origin.x, 
+//                 0, 
+//                 self.tableView.frame.size.width, 
+//                 self.tableView.frame.size.height - self.tableView.contentInset.top * 2);
+//      self.tableView.contentInset = UIEdgeInsetsZero;
+      [self.tableView reloadData];
+    }
+  };
+  
+  NSIndexPath *firstVisiableIndexPath = [self.tableView indexPathForCell:[self.tableView.visibleCells firstObject]];
+  NSIndexPath *lastVisiableIndexPath = [self.tableView indexPathForCell:[self.tableView.visibleCells lastObject]];
+
+  if (newIndexPath.row > lastVisiableIndexPath.row || newIndexPath.row < firstVisiableIndexPath.row) {
+    NSIndexPath *tempTargetIndexPath;
+    if (newIndexPath.row > lastVisiableIndexPath.row) {
+      tempTargetIndexPath = lastVisiableIndexPath;
+    } else {
+      tempTargetIndexPath = firstVisiableIndexPath;
+    }
+    
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+    [CATransaction begin];
+    [CATransaction setCompletionBlock:^{
+      LXMTodoItem *tempItem = self.todoItems[tempTargetIndexPath.row];
+      [self.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
+      [self.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+      completionBlock();
+    }];
+    LXMTodoItem *tempItem = self.todoItems[indexPath.row];
+    [self.todoItems removeObjectAtIndex:indexPath.row];
+    [self.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
+    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:tempTargetIndexPath];
+    [CATransaction commit];
+    [UIView commitAnimations];
+  } else {
+    LXMTodoItem *tempItem = self.todoItems[indexPath.row];
+    [self.todoItems removeObjectAtIndex:indexPath.row];
+    [self.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+    [CATransaction begin];
+    [CATransaction setCompletionBlock:completionBlock];
+    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
+    [CATransaction commit];
+    [UIView commitAnimations];
+  }
+}
+
+- (void)deleteRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+  LXMAnimationQueue *animationQueue = [LXMAnimationQueue new];
+  
+  LXMAnimationBlock moveRowLeft = ^(BOOL finished) {
+    [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
+      cell.contentView.frame = CGRectOffset(cell.contentView.frame, -cell.frame.size.width, 0);
+    } completion:animationQueue.blockCompletion()];
+  };
+  LXMAnimationBlock deleteRowAndReload = ^(BOOL finished) {
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationShort];
+    [CATransaction begin];
+    [CATransaction setCompletionBlock:^{
+//       self.tableView.frame = 
+//       CGRectMake(self.tableView.frame.origin.x, 
+//                  0, 
+//                  self.tableView.frame.size.width, 
+//                  self.tableView.frame.size.height - self.tableView.contentInset.top * 2);
+//       self.tableView.contentInset = UIEdgeInsetsZero;
+      [self.tableView reloadData];
+      [[NSNotificationCenter defaultCenter] postNotificationName:LXMEditCompleteNotification object:self];
+      animationQueue.blockCompletion()(YES);
+    }];
+    [self.todoItems removeObjectAtIndex:indexPath.row];
+    [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationTop];
+    [CATransaction commit];
+    [UIView commitAnimations];
+  };
+    
+  [animationQueue addAnimations:moveRowLeft, deleteRowAndReload, nil];
+  [animationQueue play];  
+}
+
+#pragma mark - UITableViewDataSource
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
   return 1;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-  return self.rows.count;
+  return self.todoItems.count;
 }
 
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-  NSObject *row = self.rows[indexPath.row];
-  UIColor *backgroundColor = [[UIColor redColor] colorWithHueOffset:0.12 * indexPath.row / self.rows.count];
+- (__kindof UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
   
-  if ([row isEqual:kAddingCell]) {
+  LXMTodoItem *todoItem = self.todoItems[indexPath.row];
+  UIColor *backgroundColor = [self colorForRowAtIndexPath:indexPath];
+  
+  if ([todoItem.text isEqualToString:kAddingCell]) {
     NSString *reuseIdentifier;
     LXMTransformableTableViewCell *cell;
     if (indexPath.row == 0) {
-      // TODO: pulldown cell
+      reuseIdentifier = @"PullDownCell";
+      cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+      if (!cell) {
+        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStylePullDown reuseIdentifier:reuseIdentifier];
+      }
     } else {
       reuseIdentifier = @"UnfoldingCell";
       cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
       
       if (!cell) {
-        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTansformableTableViewCellStyleUnfolding reuseIdentifier:reuseIdentifier];
-      }
-      cell.tintColor = backgroundColor;
-      cell.finishedHeight = kCommitingCreateCellHeight;
-      if (cell.frame.size.height > cell.finishedHeight) {
-        cell.textLabel.text = @"Release to create cell";
-      } else {
-        cell.textLabel.text = @"Continue pinching";
+        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStyleUnfolding reuseIdentifier:reuseIdentifier];
       }
     }
-    
+    cell.tintColor = backgroundColor;
+    cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+    if (cell.frame.size.height > cell.finishedHeight) {
+      cell.textLabel.text = @"Release to create cell";
+    } else {
+      cell.textLabel.text = @"Continue pinching";
+    }
     return cell;
   } else {
     static NSString *reuseIdentifier = @"NormalCell";
-    UITableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
-    
+    LXMTableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
     if (!cell) {
-      cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdentifier];
-      cell.textLabel.adjustsFontSizeToFitWidth = YES;
-      cell.textLabel.backgroundColor = [UIColor clearColor];
-      cell.selectionStyle = UITableViewCellSelectionStyleNone;
+      cell = [[LXMTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdentifier];
     }
-    cell.textLabel.text = self.rows[indexPath.row];
-    // TODO: 原设计会将已完成的事项内容修改为“DONE”。在输出时借此判断是否为已完成事项，应修改。
-    if ([row isEqual:kDoneCell]) {
-      cell.backgroundColor = [UIColor darkGrayColor];
-      cell.textLabel.textColor = [UIColor grayColor];
-    } else if ([row isEqual:kDummyCell]) {
-      cell.textLabel.text = @"";
-      cell.contentView.backgroundColor = [UIColor clearColor];
-    } else {
-      cell.textLabel.textColor = [UIColor whiteColor];
-      cell.contentView.backgroundColor = backgroundColor;
-    }
-    cell.textLabel.shadowOffset = CGSizeMake(1, 1);
-    cell.textLabel.shadowColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.6];
+    cell.todoItem = todoItem;
+    cell.delegate = self;
+    cell.actualContentView.backgroundColor = backgroundColor;
+    cell.strikeThroughText.textColor = [self textColorForRowAtIndexPath:indexPath];
     return cell;
   }
 }
 
-#pragma mark UITableViewDelegate
+#pragma mark - UITableViewDelegate
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
-  return kNormalCellFinishedHeight;
+  return [LXMGlobalSettings sharedInstance].normalRowHeight;
 }
 
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-  NSLog(@"Row of index %ld selected.", indexPath.row);
-  [tableView deselectRowAtIndexPath:indexPath animated:NO];
+#pragma mark - TableView Helper Methods
+
+- (UIColor *)colorForRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  return [self colorForRowAtIndexPath:indexPath ignoreTodoItem:NO];
 }
 
-#pragma mark LXMTableViewGestureAddingRowDelegate
+- (UIColor *)colorForRowAtIndexPath:(NSIndexPath *)indexPath ignoreTodoItem:(BOOL)shouldIgnore {
+  
+  UIColor *backgroundColor = [[LXMGlobalSettings sharedInstance].itemBaseColor colorWithHueOffset:[LXMGlobalSettings sharedInstance].colorHueOffset * (indexPath.row + 1) / self.todoItems.count];
+//  UIColor *backgroundColor = [UIColor clearColor];
+  
+  if (!shouldIgnore) {
+    if (self.todoItems[indexPath.row].isCompleted) {
+      backgroundColor = [UIColor blackColor];
+    }
+  }
+  
+  return backgroundColor;
+}
+
+- (UIColor *)textColorForRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  if (self.todoItems[indexPath.row].isCompleted) {
+    return [UIColor grayColor];
+  } else {
+    return [UIColor whiteColor];
+  }
+}
+
+#pragma mark - LXMTableViewGestureAddingRowDelegate
+
+- (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canAddCellAtIndexPath:(NSIndexPath *)indexPath {
+  if (indexPath.row == [self.todoItems count]) {
+    if ([self.todoItems lastObject].isCompleted) {
+      return NO;
+    } else {
+      return YES;
+    }
+  } else if (indexPath.row == 0) {
+    return YES;
+  } else {
+    if (self.todoItems[indexPath.row - 1].isCompleted) {
+      return NO;
+    } else {
+      return YES;
+    }
+  }
+}
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath {
-  [self.rows insertObject:kAddingCell atIndex:indexPath.row];
+  
+//  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+//    LXMTableViewCell *lxmCell = (LXMTableViewCell *)obj;
+//    [lxmCell saveLastStates];
+//  }];
+  [UIView performWithoutAnimation:^{
+    [self.todoItems insertObject:[LXMTodoItem todoItemWithText:kAddingCell] atIndex:indexPath.row];
+    [self.tableView insertRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
+  }];
+//  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+//    LXMTableViewCell *lxmCell = (LXMTableViewCell *)obj;
+//    lxmCell.targetColor = [self colorForRowAtIndexPath:indexPath];
+//  }];
+}
+
+//- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer isAddingRowAtIndexPath:(NSIndexPath *)indexPath {
+//  
+//  CGFloat height = [self.tableView cellForRowAtIndexPath:indexPath].bounds.size.height;
+//  height = MIN(self.tableView.rowHeight, height);
+      // TODO: cell 背景色应随 pinch 变化  
+//  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull  obj, NSUInteger idx, BOOL * _Nonnull stop) {
+//    if ([self.tableView indexPathForCell:obj] != indexPath) {
+      
+//      LXMTableViewCell *lxmCell = (LXMTableViewCell *)obj;
+//      [lxmCell updateViewBackgroundColorWithPercentage:height / self.tableView.rowHeight];
+//    }
+//  }];
+//}
+
+- (void)resetCellAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
+  
+  LXMTransformableTableViewCell *theCell = [self.tableView cellForRowAtIndexPath:indexPath];
+  CGFloat cellFinishedHeight;
+  CGFloat cellHeight = theCell.frame.size.height;
+  if (shouldAdd) {
+    cellFinishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+  } else {
+    cellFinishedHeight = 0;
+  }
+  
+  LXMAnimationQueue *animationQueue = [LXMAnimationQueue new];
+  LXMAnimationBlock resetTableView;
+  if (indexPath.row == 0) {
+    resetTableView = ^(BOOL finished) {
+      
+      CATransform3D identity, transform;
+      if (shouldAdd) {
+        ;
+      } else {
+        identity = CATransform3DIdentity;
+        identity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
+        transform = CATransform3DRotate(identity, M_PI_2, 1, 0, 0);
+        [self startAnimation];
+      }
+      
+      [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
+        if (shouldAdd) {
+          for (UITableViewCell *cell in self.tableView.visibleCells) {
+            if ([self.tableView indexPathForCell:cell].row != indexPath.row) {
+              cell.frame = CGRectOffset(cell.frame, 0, -(theCell.frame.size.height - [LXMGlobalSettings sharedInstance].addingRowFinishedHeight));
+            }
+          }
+          theCell.frame = 
+          CGRectMake(theCell.frame.origin.x, 
+                     theCell.frame.origin.y, 
+                     theCell.frame.size.width, 
+                     cellFinishedHeight);
+        } else {
+          ((LXMPullDownTransformableTableViewCell *)theCell).transformableView.layer.transform = transform;
+        }
+      } completion:^(BOOL finished) {
+        self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
+        if (!shouldAdd) {
+          [self stopAnimation];
+        }
+        [self.tableView reloadData];
+        animationQueue.blockCompletion()(YES);
+      }];
+    };
+  } else {
+    resetTableView = ^(BOOL finished) {
+      
+      [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
+          theCell.frame = 
+          CGRectMake(theCell.frame.origin.x, 
+                     theCell.frame.origin.y, 
+                     theCell.frame.size.width, 
+                     cellFinishedHeight);
+        
+        self.tableView.contentInset = self.tableViewState.lastContentInset;
+        self.tableView.contentOffset = self.tableViewState.lastContentOffset;
+        
+        for (UITableViewCell *cell in self.tableView.visibleCells) {
+          if ([self.tableView indexPathForCell:cell].row > indexPath.row) {
+            if (shouldAdd) {
+              cell.frame = CGRectOffset(cell.frame, 0, self.tableView.rowHeight - cellHeight);
+            } else {
+              cell.frame = CGRectOffset(cell.frame, 0, -cellHeight);
+            }
+          }
+        }
+      } completion:^(BOOL finished) {
+        self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
+        [self.tableView reloadData];
+        animationQueue.blockCompletion()(YES);
+      }];
+    };
+  }
+  
+  // TODO:非常奇怪，当在未完成项目列表尾部增加 todo 时，必须访问 cell.userInteractionEnabled，动画效果才能正常。
+  LXMAnimationBlock assignFirstResponder = ^(BOOL finished){
+    [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
+      LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+      if (shouldAdd && cell.userInteractionEnabled) {
+        [cell.strikeThroughText becomeFirstResponder];
+      }
+    } completion:^(BOOL finished) {
+      animationQueue.blockCompletion()(YES);
+    }];
+  };
+  
+  [animationQueue addAnimations:resetTableView, assignFirstResponder, nil];
+  [animationQueue play];
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCommitRowAtIndexPath:(NSIndexPath *)indexPath {
-  [self.rows replaceObjectAtIndex:indexPath.row withObject:@"Added!"];
-  LXMTransformableTableViewCell *cell = [recognizer.tableView cellForRowAtIndexPath:indexPath];
   
-  BOOL isFirstRow = indexPath.section == 0 && indexPath.row == 0;
+  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:@""]];
+  LXMTransformableTableViewCell *cell = [recognizer.tableView cellForRowAtIndexPath:indexPath];
+  [self resetCellAtIndexPath:indexPath forAdding:YES];
+  
+  
+  BOOL isFirstRow = (indexPath.section == 0) && (indexPath.row == 0);
   if (isFirstRow) {
-    if (cell.frame.size.height > kCommitingCreateCellHeight * 2) {
-      [self.rows removeObjectAtIndex:indexPath.row];
+    if (cell.frame.size.height > [LXMGlobalSettings sharedInstance].addingRowFinishedHeight * 2) {
+      [self.todoItems removeObjectAtIndex:indexPath.row];
       [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationMiddle];
     } else {
-      cell.finishedHeight = kNormalCellFinishedHeight;
+      cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
       cell.textLabel.text = @"Just added!";
     }
   }
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsDiscardRowAtIndexPath:(NSIndexPath *)indexPath {
-  [self.rows removeObjectAtIndex:indexPath.row];
+  [self.todoItems removeObjectAtIndex:indexPath.row];
+  [self resetCellAtIndexPath:indexPath forAdding:NO];
+}
+
+#pragma mark - LXMTableViewGestureEditingRowDelegate
+
+- (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  BOOL __block canEdit = YES;
+  [self.tableViewState.uneditableIndexPathes enumerateObjectsUsingBlock:^(NSIndexPath * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    if (indexPath == obj) {
+      canEdit = NO;
+      *stop = YES;
+    }
+  }];
+  
+  return canEdit;
+}
+
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath {
+
+  LXMTableViewCell *cell = self.tableViewState.panningCell;
+  indexPath = [self.tableView indexPathForCell:cell];
+  
+  if (cell.todoItem.isCompleted) {
+    switch (editingState) {
+      case LXMTableViewCellEditingStateDeleting:
+      case LXMTableViewCellEditingStateNormal:
+        cell.actualContentView.backgroundColor = [UIColor blackColor];
+        cell.strikeThroughText.textColor = [UIColor grayColor];
+        break;
+        
+      case LXMTableViewCellEditingStateCompleting:
+        cell.actualContentView.backgroundColor = [self colorForRowAtIndexPath:[self moveDestinationIndexPathForRowAtIndexPath:indexPath] ignoreTodoItem:YES];
+        cell.strikeThroughText.textColor = [UIColor whiteColor];
+        break;
+      
+      case LXMTableViewCellEditingStateNone:
+        break;
+    }
+  } else {
+    switch (editingState) {
+      case LXMTableViewCellEditingStateDeleting:
+      case LXMTableViewCellEditingStateNormal:
+        cell.actualContentView.backgroundColor = [self colorForRowAtIndexPath:indexPath];
+        cell.strikeThroughText.textColor = [UIColor whiteColor];
+        break;
+        
+      case LXMTableViewCellEditingStateCompleting:
+        cell.actualContentView.backgroundColor = [LXMGlobalSettings sharedInstance].editingCompletedColor;
+        cell.strikeThroughText.textColor = [UIColor whiteColor];
+        break;
+        
+      case LXMTableViewCellEditingStateNone:
+        break;
+    }
+  }
+}
+
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  LXMTableViewCell *cell = self.tableViewState.panningCell;
+  indexPath = [self.tableView indexPathForCell:cell];// very importent
+  
+  self.tableViewState.panningCell = nil;
+  
+  switch (editingState) {
+    case LXMTableViewCellEditingStateDeleting:
+      [self deleteRowAtIndexPath:indexPath];
+      break;
+      
+    case LXMTableViewCellEditingStateNormal:
+    case LXMTableViewCellEditingStateNone:
+      [self bounceCell:cell check:NO];
+      break;
+      
+    case LXMTableViewCellEditingStateCompleting:
+      self.todoItems[indexPath.row].isCompleted = !self.todoItems[indexPath.row].isCompleted;
+      [self bounceCell:cell check:YES];
+      break;
+  }
+}
+
+#pragma mark - LXMTableViewGestureMoveRowDelegate
+
+- (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canMoveRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  return YES;
+}
+
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCreatePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath {
+  self.grabbedTodoItem = self.todoItems[indexPath.row];
+  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:kDummyCell]];
+}
+
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsMovePlaceholderForRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath {
+  
+  id object = self.todoItems[sourceIndexPath.row];
+  [self.todoItems removeObjectAtIndex:sourceIndexPath.row];
+  [self.todoItems insertObject:object atIndex:destinationIndexPath.row];
+}
+
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsReplacePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath {
+  
+  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:self.grabbedTodoItem];
+  self.grabbedTodoItem = nil;
+}
+
+#pragma mark - LXMTableViewCellDelegate
+
+- (BOOL)tableViewCellShouldBeginTextEditing:(LXMTableViewCell *)cell {
+  
+  return YES;
+}
+
+- (void)tableViewCellDidBeginTextEditing:(LXMTableViewCell *)cell {
+  
+  self.tableViewState.lastContentOffset = self.tableView.contentOffset;
+  self.tableView.scrollEnabled = NO;
+  self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNoInteracting;
+  
+  NSTimeInterval duration = self.keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal : self.keyboardAnimationDuration;
+  UIViewAnimationOptions options = self.keyboardAnimationDuration < 0.01 ? UIViewAnimationOptionCurveEaseInOut : self.keyboardAnimationCurve << 16;
+  
+//  [self.tableView scrollToNearestSelectedRowAtScrollPosition:UITableViewScrollPositionTop animated:YES];
+//  [self.tableView scrollToRowAtIndexPath:[self.tableView indexPathForCell:cell] atScrollPosition:UITableViewScrollPositionTop animated:YES];
+
+  [UIView animateWithDuration:duration delay:0 options:options animations:^{
+    self.tableView.contentOffset = 
+    (CGPoint){self.tableView.contentOffset.x, cell.frame.origin.y - self.tableView.contentInset.top};
+
+    for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
+      if (cell != visibleCell) {
+        visibleCell.alpha = 0.3;
+        visibleCell.userInteractionEnabled = NO;
+      }
+    }
+  } completion:nil];
+}
+
+- (BOOL)tableViewCellShouldEndTextEditing:(LXMTableViewCell *)cell {
+  
+  return YES;
+}
+
+- (void)tableViewCellDidEndTextEditing:(LXMTableViewCell *)cell {
+  
+  self.tableView.scrollEnabled = YES;
+  
+  NSTimeInterval duration = self.keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal : self.keyboardAnimationDuration;
+  UIViewAnimationOptions options = self.keyboardAnimationDuration < 0.01 ? UIViewAnimationOptionCurveEaseInOut : self.keyboardAnimationCurve << 16;
+  
+  [UIView animateWithDuration:duration delay:0 options:options animations:^{
+    self.tableView.contentOffset = self.tableViewState.lastContentOffset;
+    for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
+      if (cell != visibleCell) {
+        visibleCell.alpha = 1.0f;
+      }
+    }
+  } completion:^(BOOL finished) {
+    [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+      obj.userInteractionEnabled = YES;
+    }];
+    if ([cell.strikeThroughText.text isEqualToString:@""]) {
+      [self deleteRowAtIndexPath:[self.tableView indexPathForCell:cell]];
+    } else {
+      [self.tableView reloadData];
+    }
+    self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
+  }];
 }
 
 @end

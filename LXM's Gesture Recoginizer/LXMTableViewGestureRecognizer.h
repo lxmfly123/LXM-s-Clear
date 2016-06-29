@@ -6,17 +6,18 @@
 //  Copyright © 2016 FLY.lxm. All rights reserved.
 //
 
+#import <UIKit/UIKit.h>
+#import "LXMTableViewState.h"
 
-typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
-  LXMTableViewCellEditingStateMiddle,
-  LXMTableViewCellEditingStateLeft,
-  LXMTableViewCellEditingStateRight,
-};
+@class LXMTableViewCell;
 
-extern CGFloat const LXMTableViewRowAnimationDuration;
+extern CGFloat const LXMTableViewRowAnimationDurationNormal;
+extern CGFloat const LXMTableViewRowAnimationDurationShort;
+extern CGFloat const LXMTableViewRowAnimationDurationLong;
 
 @interface LXMTableViewGestureRecognizer : NSObject <UITableViewDelegate>
 
+@property (nonatomic, assign) LXMTableViewGestureRecognizerState state;
 @property (nonatomic, weak, readonly) UITableView *tableView;
 
 + (instancetype)gestureRecognizerWithTableView:(UITableView *)tableView delegate:(id)delegate;
@@ -25,31 +26,40 @@ extern CGFloat const LXMTableViewRowAnimationDuration;
 
 @protocol LXMTableViewGestureAddingRowDelegate <NSObject>
 
+- (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canAddCellAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCommitRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsDiscardRowAtIndexPath:(NSIndexPath *)indexPath;
 
 @optional
 
-- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer willCreatCellAtIndexPath:(NSIndexPath *)indexPath;
+- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer willCreateCellAtIndexPath:(NSIndexPath *)indexPath;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer isAddingRowAtIndexPath:(NSIndexPath *)indexPath;
 - (CGFloat)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer  heightForCommitingRowAtIndexPath:(NSIndexPath *)indexPath;
 
 @end
 
 
-// swipe to finish/delete cell
+// pan right/left to finish/delete cell
 @protocol LXMTableViewGestureEditingRowDelegate <NSObject>
 
+// user indexpath to identify cell
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canEditRowAtIndexPath:(NSIndexPath *)indexPath;
-- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
-- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
+
+// use cell directly
+- (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canEditCell:(LXMTableViewCell *)cell;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forCell:(LXMTableViewCell *)cell;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditingState:(LXMTableViewCellEditingState)editingState forCell:(LXMTableViewCell *)cell;
 
 @optional
 
-- (CGFloat)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer  lengthForCommitEditingRowAtIndexPath:(NSIndexPath *)indexPath;
+- (CGFloat)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer lengthForCommitEditingRowAtIndexPath:(NSIndexPath *)indexPath;
 //- (void)gestureRecognizer:(JTTableViewGestureRecognizer *)gestureRecognizer didChangeContentViewTranslation:(CGPoint)translation forRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)
 gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didChangeContentViewTranslation:(CGPoint)translation forRowAtIndexPath:(NSIndexPath *)indexPath;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer isCommittingEditingState:(LXMTableViewCellEditingState)editingState forCell:(LXMTableViewCell *)cell;
 
 @end
 
@@ -57,17 +67,21 @@ gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didChangeContentVi
 // long press to drag a row to any indexPath;
 @protocol LXMTableViewGestureMoveRowDelegate <NSObject>
 
+/// 能否移动一个行
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canMoveRowAtIndexPath:(NSIndexPath *)indexPath;
+/// 为移动的行创建一个占位行
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCreatePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath;
+/// 随着移动的行移动占位行
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsMovePlaceholderForRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath;
+/// 将占位行替换为实际行
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsReplacePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath;
 
 @end
 
 
-@interface UITableView (LXMTableViewDelegate)
+@interface UITableView (LXMTableView)
 
 - (LXMTableViewGestureRecognizer *)enableGestureTableViewWithDelegate:(id)delegate;
-- (void)reloadVisibleRowsExceptIndexPath:(NSIndexPath *)indexPath;
+- (void)reloadVisibleRowsExceptIndexPaths:(NSArray<NSIndexPath *> *)indexPaths;
 
 @end

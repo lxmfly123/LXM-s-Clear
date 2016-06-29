@@ -43,6 +43,39 @@
   return color;
 }
 
+- (instancetype)colorWithBrightnessOffset:(CGFloat)brightnessOffset {
+  UIColor *color;
+  if (!color) {
+    CGFloat hue, saturation, brightness, alpha;
+    if ([self getHue:&hue 
+          saturation:&saturation 
+          brightness:&brightness 
+               alpha:&alpha]) {
+      color = [UIColor colorWithHue:hue 
+                         saturation:saturation 
+                         brightness:brightness + brightnessOffset 
+                              alpha:alpha];
+    }
+  }
+  
+  if (!color) {
+    CGFloat red, green, blue, alpha;
+    if ([self getRed:&red green:&green blue:&blue alpha:&alpha]) {
+      color = [UIColor colorWithRed:red
+                              green:green blue:blue alpha:alpha];
+    }
+  }
+  
+  if (!color) {
+    CGFloat white, alpha;
+    if ([self getWhite:&white alpha:&alpha]) {
+      color = [UIColor colorWithWhite:white alpha:alpha];
+    }
+  }
+  
+  return color;
+}
+
 - (UIColor *)colorWithHueOffset:(CGFloat)hueOffset {
   UIColor *color;
   if (!color) {
@@ -52,6 +85,23 @@
       color = [UIColor colorWithHue:hue saturation:saturation brightness:brightness alpha:alpha];
     }
   }
+  return color;
+}
+
++ (instancetype)colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage {
+  
+  UIColor *color;
+  CGFloat startHue, endHue, hue, saturation, brightness, alpha;
+  
+  [startColor getHue:&startHue saturation:&saturation brightness:&brightness alpha:&alpha];
+  [endColor getHue:&endHue saturation:&saturation brightness:&brightness alpha:&alpha];
+  
+  hue = startHue + percentage * (endHue - startHue);
+  color = [UIColor colorWithHue:hue 
+                     saturation:saturation 
+                     brightness:brightness 
+                          alpha:alpha];
+  
   return color;
 }
 

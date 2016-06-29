@@ -6,9 +6,12 @@
 //  Copyright © 2016 FLY.lxm. All rights reserved.
 //
 
-typedef NS_ENUM(NSUInteger, LXMTansformableTableViewCellStyle) {
-  LXMTansformableTableViewCellStyleUnfolding,
-  LXMTansformableTableViewCellStylePullDown,
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+
+typedef NS_ENUM(NSUInteger, LXMTransformableTableViewCellStyle) {
+  LXMTransformableTableViewCellStyleUnfolding,
+  LXMTransformableTableViewCellStylePullDown,
 };
 
 @protocol LXMTransformableTableViewCell <NSObject>
@@ -20,7 +23,7 @@ typedef NS_ENUM(NSUInteger, LXMTansformableTableViewCellStyle) {
 
 @interface LXMTransformableTableViewCell : UITableViewCell <LXMTransformableTableViewCell>
 
-+ (instancetype)transformableTableViewCellWithStyle:(LXMTansformableTableViewCellStyle)style reuseIdentifier:(NSString *)identifier;
++ (instancetype)transformableTableViewCellWithStyle:(LXMTransformableTableViewCellStyle)style reuseIdentifier:(NSString *)identifier;
 
 @end
 
@@ -31,4 +34,10 @@ typedef NS_ENUM(NSUInteger, LXMTansformableTableViewCellStyle) {
 
 @end
 
-// TODO: LXMPullDownTansformableTableViewCell
+@interface LXMPullDownTransformableTableViewCell : LXMTransformableTableViewCell <LXMTransformableTableViewCell>
+
+@property (nonatomic, strong) UIView *transformableView;
+@property (nonatomic, assign) CGFloat vSize;
+@property (nonatomic, assign) CGFloat fraction;
+
+@end

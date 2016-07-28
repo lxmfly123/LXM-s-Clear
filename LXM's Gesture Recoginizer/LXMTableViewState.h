@@ -11,22 +11,6 @@
 
 @class LXMTableViewCell;
 
-typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
-  LXMTableViewCellEditingStateNone,
-  LXMTableViewCellEditingStateNormal,
-  LXMTableViewCellEditingStateDeleting,
-  LXMTableViewCellEditingStateCompleting,
-};
-
-typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
-  LXMTableViewGestureRecognizerStateNone,
-  LXMTableViewGestureRecognizerStatePinching,
-  LXMTableViewGestureRecognizerStatePanning,
-  LXMTableViewGestureRecognizerStateMoving,
-  LXMTableViewGestureRecognizerStateDragging,
-  LXMTableViewGestureRecognizerStateNoInteracting,
-};
-
 /// 一个通知的名称，当标记 todo 项的操作的全部动画完成时，被发送给当前 table view 的 `LXMTableViewGestureRecoginizer` 的实例。
 extern NSString *LXMEditCompleteNotification;
 
@@ -52,5 +36,8 @@ extern NSString *LXMEditCompleteNotification;
 + (instancetype)sharedInstance;
 
 - (void)resetState;
+
+- (void)saveTableViewLastContentOffsetAndInset;
+- (void)recoverTableViewContentOffsetAndInset;
 
 @end

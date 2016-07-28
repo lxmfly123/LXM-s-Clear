@@ -8,7 +8,6 @@
 
 #import <UIKit/UIKit.h>
 
-@class LXMTodoItem;
 @class LXMTableViewCell;
 
 @interface LXMStrikeThroughText : UITextField

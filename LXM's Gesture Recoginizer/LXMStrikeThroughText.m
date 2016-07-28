@@ -12,10 +12,11 @@
 #import "LXMTableViewCell.h"
 #import "LXMGlobalSettings.h"
 
-static CGFloat kStrikeThroughThickness = 1.0f;
-static CGFloat kTextLeftPadding = 5.0f;
+static const CGFloat kStrikeThroughThickness = 1.0f;
 
 @interface LXMStrikeThroughText ()
+
+@property (nonatomic, weak) LXMGlobalSettings *globalSettings;
 
 @property (nonatomic, strong) CALayer *strikeThroughLine;
 @property (nonatomic, assign) CGColorRef strikeThroughColor;
@@ -38,6 +39,7 @@ static CGFloat kTextLeftPadding = 5.0f;
   if (self) {
     self.font = [UIFont systemFontOfSize:18];
     self.returnKeyType = UIReturnKeyDone;
+    self.globalSettings = [LXMGlobalSettings sharedInstance];
   }
   return self;
 }
@@ -80,28 +82,26 @@ static CGFloat kTextLeftPadding = 5.0f;
 
 - (CGFloat)strikeThroughLength {
   
-  CGFloat length = [self.text sizeWithAttributes:@{NSFontAttributeName:self.font}].width + 2 * kTextLeftPadding;
+  CGFloat length = [self.text sizeWithAttributes:@{NSFontAttributeName:self.font}].width + 2 * self.globalSettings.textFieldLeftPadding;
   
   switch (self.parentCell.editingState) {
     case LXMTableViewCellEditingStateNone:
     case LXMTableViewCellEditingStateDeleting:
     case LXMTableViewCellEditingStateCompleting:
-      return length;
       break;
       
     case LXMTableViewCellEditingStateNormal:
-      if (self.parentCell.actualContentView.frame.origin.x < 0) {
-        return length;
-      } else {
+      if (self.parentCell.actualContentView.frame.origin.x >= 0) {
         if (self.parentCell.todoItem.isCompleted) {
           length = length * (1 - MIN(ABS(self.parentCell.actualContentView.frame.origin.x) / [LXMGlobalSettings sharedInstance].editCommitTriggerWidth, 1.0f));
         } else {
           length = length * (MIN(ABS(self.parentCell.actualContentView.frame.origin.x) / [LXMGlobalSettings sharedInstance].editCommitTriggerWidth, 1.0f));
         }
-        return length;
       }
       break;
   }
+
+  return length;
 }
 
 - (CGColorRef)strikeThroughColor {
@@ -149,7 +149,7 @@ static CGFloat kTextLeftPadding = 5.0f;
 
 - (CGRect)textRectForBounds:(CGRect)bounds {
   
-  return CGRectMake(kTextLeftPadding, bounds.origin.y, bounds.size.width, bounds.size.height);
+  return CGRectMake(self.globalSettings.textFieldLeftPadding, bounds.origin.y, bounds.size.width, bounds.size.height);
 }
 
 - (CGRect)editingRectForBounds:(CGRect)bounds {

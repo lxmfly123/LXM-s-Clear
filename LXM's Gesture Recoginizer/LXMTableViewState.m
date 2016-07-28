@@ -13,6 +13,8 @@ NSString *LXMEditCompleteNotification = @"EditComplete";
 
 @interface LXMTableViewState ()
 
+@property (nonatomic, weak) LXMGlobalSettings *globalSettings;
+
 @property (nonatomic, strong, readwrite) NSArray<NSIndexPath *> *uneditableIndexPathes;
 @property (nonatomic, strong, readwrite) UIView *assistView;
 
@@ -25,6 +27,7 @@ NSString *LXMEditCompleteNotification = @"EditComplete";
   if (self = [super init]) {
     self.floatingCells = [[NSMutableArray alloc] initWithCapacity:5];
     self.bouncingCells = [[NSMutableArray alloc] initWithCapacity:2];
+    self.globalSettings = [LXMGlobalSettings sharedInstance];
   }
   return self;
 }
@@ -57,7 +60,7 @@ NSString *LXMEditCompleteNotification = @"EditComplete";
 
 - (UIView *)assistView {
   if (!_assistView) {
-    _assistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, [LXMGlobalSettings sharedInstance].addingRowFinishedHeight)];
+    _assistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.addingRowFinishedHeight)];
   }
   return _assistView;
 }
@@ -68,6 +71,21 @@ NSString *LXMEditCompleteNotification = @"EditComplete";
   self.panningCell = nil;
   [self.bouncingCells removeAllObjects];
   [self.floatingCells removeAllObjects];
+}
+
+- (void)saveTableViewLastContentOffsetAndInset {
+
+  self.lastContentOffset = self.tableView.contentOffset;
+  self.lastContentInset = self.tableView.contentInset;
+}
+
+- (void)recoverTableViewContentOffsetAndInset {
+
+  self.tableView.contentOffset = self.lastContentOffset;
+  self.tableView.contentInset = self.lastContentInset;
+
+  self.lastContentOffset = CGPointZero;
+  self.lastContentInset = UIEdgeInsetsZero;
 }
 
 @end

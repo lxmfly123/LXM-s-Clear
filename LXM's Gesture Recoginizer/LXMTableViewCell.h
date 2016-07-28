@@ -22,6 +22,14 @@
 
 @end
 
+
+typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
+  LXMTableViewCellEditingStateNone,
+  LXMTableViewCellEditingStateNormal,
+  LXMTableViewCellEditingStateDeleting,
+  LXMTableViewCellEditingStateCompleting,
+};
+
 @interface LXMTableViewCell : UITableViewCell
 
 @property (nonatomic, strong) LXMTodoItem *todoItem;
@@ -30,8 +38,8 @@
 @property (nonatomic, assign) LXMTableViewCellEditingState editingState;
 @property (nonatomic, weak) id <LXMTableViewCellDelegate> delegate;
 @property (nonatomic, strong) LXMStrikeThroughText *strikeThroughText;
+@property  (nonatomic, assign) BOOL isModifying;
 
-- (void)recoverCellAfterEdit;
 //- (void)saveLastStates;
 //- (void)updateViewBackgroundColorWithPercentage:(CGFloat)percentage;
 

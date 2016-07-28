@@ -30,11 +30,16 @@
   
   va_list animations;
   va_start(animations, animation1);
+  [self addAnimations:animation1 withParameters:animations];
+  va_end(animations);
+}
+
+- (void)addAnimations:(LXMAnimationBlock)animation1 withParameters:(va_list)animations {
+
   LXMAnimationBlock animation;
   while ((animation = va_arg(animations, LXMAnimationBlock))) {
     [self.animations addObject:animation];
   }
-  va_end(animations);
 }
 
 - (LXMAnimationBlock (^)(void))blockCompletion {

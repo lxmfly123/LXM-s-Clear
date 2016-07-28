@@ -81,7 +81,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   tableView.delegate = recognizer;
   
   [recognizer configureGestureRecognizers];
-  [recognizer adjustTableViewFrame];
+//  [recognizer adjustTableViewFrame];
   
   return recognizer;
 }
@@ -154,8 +154,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   if (self.state == LXMTableViewGestureRecognizerStatePinching) {
 //    self.startingTableViewContentOffset = self.tableView.contentOffset;
 //    self.startingTableViewContentInset = self.tableView.contentInset;
-    [LXMTableViewState sharedInstance].lastContentOffset = self.tableView.contentOffset;
-    [LXMTableViewState sharedInstance].lastContentInset = self.tableView.contentInset;
+    [[LXMTableViewState sharedInstance] saveTableViewLastContentOffsetAndInset];
     self.startingPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer];
     self.addingCellIndexPath = [self targetIndexPathForPinchPoints:[self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer]];
   } else if (self.state == LXMTableViewGestureRecognizerStatePanning) {
@@ -171,8 +170,8 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   if (self.state == LXMTableViewGestureRecognizerStatePinching) {
 //    self.startingTableViewContentOffset = CGPointZero;
 //    self.startingTableViewContentInset = UIEdgeInsetsZero;
-    [LXMTableViewState sharedInstance].lastContentOffset = CGPointZero;
-    [LXMTableViewState sharedInstance].lastContentInset = UIEdgeInsetsZero;
+//    [LXMTableViewState sharedInstance].lastContentOffset = CGPointZero;
+//    [LXMTableViewState sharedInstance].lastContentInset = UIEdgeInsetsZero;
     self.startingPinchPoints = (LXMPinchPoints){{0, 0}, {0, 0}};
     self.addingCellIndexPath = nil;
   } else if (self.state == LXMTableViewGestureRecognizerStatePanning) {
@@ -384,14 +383,16 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 - (void)handleTap:(UITapGestureRecognizer *)recognizer {
   
   if (recognizer.state == UIGestureRecognizerStateEnded) {
-//    CGPoint location = [recognizer locationInView:self.tableView];
-//    LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[self.tableView indexPathForRowAtPoint:location]];
-//    
-//    if (cell.userInteractionEnabled) {
-//      [cell.strikeThroughText becomeFirstResponder];
-//    } else {
+    if (self.state == LXMTableViewGestureRecognizerStateNone) {
+      CGPoint location = [recognizer locationInView:self.tableView];
+      LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[self.tableView indexPathForRowAtPoint:location]];
+      if (!cell.todoItem.isCompleted) {
+        NSLog(@"become ");
+        [cell.strikeThroughText becomeFirstResponder];
+      }
+    } else {
       [self.tableView endEditing:YES];
-//    }
+    }
   }
 }
 
@@ -417,7 +418,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
     
     if (self.addingRowHeight >= 0) {
       CGFloat upperDistance = self.startingPinchPoints.upper.y - currentPinchPoints.upper.y;
-      self.tableView.contentOffset = CGPointMake([LXMTableViewState sharedInstance].lastContentOffset.x, self.tableView.contentOffset.y + upperDistance);
+      self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
     } else {
       self.addingRowHeight = 0;
       // TODO: pinch transform to totolist view
@@ -589,8 +590,8 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 #pragma mark - UIScrollViewDelegate
 
-CGFloat static tempAddingRowHeight = 0;
-
+//CGFloat static tempAddingRowHeight = 0;
+/*
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
   
   if (scrollView.contentOffset.y <= -self.tableView.contentInset.top && [[LXMTableViewState sharedInstance].uneditableIndexPathes count] == 0) {
@@ -604,19 +605,20 @@ CGFloat static tempAddingRowHeight = 0;
       tempAddingRowHeight = 0;
     } 
   }
-}
-
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+}*/
+/*
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {*/
   
 //   如果 self.delegate 不遵守 addingrow 协议，返回。
 //   返回之前，最好看下 self.tableView 的 delegate 有没有 didScroll: 方法，如果能的话，就用它的。
 //   好像是个圈啊。
+  /*
   if (![self.delegate conformsToProtocol:@protocol(LXMTableViewGestureAddingRowDelegate)]) {
     if ([self.tableViewDelegate respondsToSelector:@selector(scrollViewDidScroll:)]) {
       [self.tableViewDelegate scrollViewDidScroll:scrollView];
     }
     return;
-  }
+  }*/
   
   /** 
    存储手指向下拖动的长度。
@@ -625,7 +627,7 @@ CGFloat static tempAddingRowHeight = 0;
   */
   
 
-  
+/*
   if (self.state == LXMTableViewGestureRecognizerStateDragging) {
     tempAddingRowHeight += -(scrollView.contentOffset.y + self.tableView.contentInset.top);
 //    tempAddingRowHeight = [scrollView.panGestureRecognizer translationInView:scrollView].y;
@@ -663,8 +665,9 @@ CGFloat static tempAddingRowHeight = 0;
       [self.tableView reloadRowsAtIndexPaths:@[self.addingCellIndexPath] withRowAnimation:UITableViewRowAnimationNone];
     }];
   }
-}
+}*/
 
+ /*
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
   NSLog(@"******end dragging******");
   if (self.state == LXMTableViewGestureRecognizerStateDragging) {
@@ -675,6 +678,11 @@ CGFloat static tempAddingRowHeight = 0;
   if (decelerate) {
     NSLog(@"yes");
   }
+}*/
+
+- (void)scrollViewWillBeginDecelerating:(UIScrollView *)scrollView {
+
+  NSLog(NSStringFromCGPoint(scrollView.contentOffset));
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
@@ -683,11 +691,10 @@ CGFloat static tempAddingRowHeight = 0;
 }
 
 #pragma mark - UITableViewDelegate
-
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
   CGFloat rowHeight;
   if (self.addingCellIndexPath && [indexPath isEqual:self.addingCellIndexPath]) {
-    if (self.state == LXMTableViewGestureRecognizerStatePinching || 
+    if (self.state == LXMTableViewGestureRecognizerStatePinching ||
         self.state == LXMTableViewGestureRecognizerStateDragging) {
       rowHeight = MAX(0, self.addingRowHeight);
     } else {

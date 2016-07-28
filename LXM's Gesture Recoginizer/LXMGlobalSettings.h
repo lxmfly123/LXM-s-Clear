@@ -21,7 +21,7 @@ typedef void (^LXMAnimationBlock)(BOOL);
 @property (nonatomic, strong, readonly) UIColor *editingCompletedColor;
 @property (nonatomic, assign, readonly) CGFloat colorHueOffset;
 
-/// 当值为 YES 时，在各行之间绘制一条半透明分割线。(目前未使用)
+/// 当值为 YES 时，在各行之间绘制一条半透明分割线。默认为 YES。 (目前未使用)
 @property (nonatomic, assign, readonly) BOOL shouldSeparateRow;
 
 // fonts

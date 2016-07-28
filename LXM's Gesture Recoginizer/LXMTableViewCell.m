@@ -21,6 +21,8 @@ static CGFloat kRightMargin = 16.0f;
 
 @interface LXMTableViewCell () <UITextFieldDelegate>
 
+@property (nonatomic, weak) LXMGlobalSettings *globalSettings;
+
 @property (nonatomic, strong) UILabel *gestureCompletionHintLabel;
 @property (nonatomic, strong) UILabel *gestureDeletionHintLabel;
 @property (nonatomic, strong) CAGradientLayer *separationLineLayer;
@@ -30,10 +32,6 @@ static CGFloat kRightMargin = 16.0f;
 @end
 
 @implementation LXMTableViewCell
-
-- (void)awakeFromNib {
-    // Initialization code
-}
 
 - (void)setSelected:(BOOL)selected animated:(BOOL)animated {
   
@@ -51,6 +49,8 @@ static CGFloat kRightMargin = 16.0f;
     self.backgroundColor = [UIColor blackColor];
     self.contentView.backgroundColor = [UIColor blackColor];
     self.editingState = LXMTableViewCellEditingStateNone;
+    self.isModifying = NO;
+    self.globalSettings = [LXMGlobalSettings sharedInstance];
     
     // actual content view
     self.actualContentView = [[UIView alloc] initWithFrame:CGRectNull];
@@ -87,7 +87,7 @@ static CGFloat kRightMargin = 16.0f;
   
   self.gestureCompletionHintLabel.frame = 
   CGRectMake([self gestureHintOffset:LXMTableViewRowGestureHintCompletion].x, 
-             [self gestureHintOffset:LXMTableViewRowGestureHintCompletion].y, 
+             [self gestureHintOffset:LXMTableViewRowGestureHintCompletion].y,
              [self gestureHintWidth], 
              self.bounds.size.height - [self gestureHintOffset:LXMTableViewRowGestureHintCompletion].y * 2);
   self.gestureCompletionHintLabel.textColor = [self gestureHintColor:LXMTableViewRowGestureHintCompletion];
@@ -112,14 +112,19 @@ static CGFloat kRightMargin = 16.0f;
   
   [self layoutGestureHintLabels];
   
-  self.strikeThroughText.frame = CGRectMake(kLeftMargin, 0, self.bounds.size.width - kLeftMargin - kRightMargin, self.bounds.size.height);
+  self.strikeThroughText.frame = CGRectMake(self.globalSettings.textFieldLeftMargin,
+                                            0,
+                                            self.bounds.size.width - self.globalSettings.textFieldLeftMargin - self
+                                                .globalSettings.textFieldRightMargin,
+                                            self.bounds.size.height);
   
   [self.strikeThroughText setNeedsLayout];
 }
 
 - (void)prepareForReuse {
-  
-  self.userInteractionEnabled = YES;
+
+  self.transform = CGAffineTransformIdentity;
+  self.isModifying = NO;
 }
 
 - (CGFloat)gestureHintWidth {
@@ -134,17 +139,16 @@ static CGFloat kRightMargin = 16.0f;
 }
 
 - (UIColor *)gestureHintColor:(LXMTableViewRowGestureHintType)hintType {
+
+  UIColor *hintColor;
   
   switch (hintType) {
     case LXMTableViewRowGestureHintCompletion:
     {
       if (self.actualContentView.frame.origin.x >[[LXMGlobalSettings sharedInstance] editCommitTriggerWidth]) {
-        return [UIColor colorWithHue:107 / 360.0f saturation:1 brightness:1 alpha:1];
+        hintColor = [UIColor colorWithHue:107 / 360.0f saturation:1 brightness:1 alpha:1];
       } else {
-        if (self.todoItem.isCompleted) {
-          return [UIColor grayColor];
-        }
-        return [UIColor whiteColor];
+        hintColor = self.todoItem.isCompleted ? [UIColor grayColor] : [UIColor whiteColor];
       }
     }
       break;
@@ -152,29 +156,32 @@ static CGFloat kRightMargin = 16.0f;
     case LXMTableViewRowGestureHintDeletion:
     {
       if (ABS(self.actualContentView.frame.origin.x) >[[LXMGlobalSettings sharedInstance] editCommitTriggerWidth]) {
-        return [UIColor colorWithHue:1 saturation:1 brightness:1 alpha:1];
+        hintColor = [UIColor colorWithHue:1 saturation:1 brightness:1 alpha:1];
       } else {
-        if (self.todoItem.isCompleted) {
-          return [UIColor grayColor];
-        }
-        return [UIColor whiteColor];
+        hintColor = self.todoItem.isCompleted ? [UIColor grayColor] : [UIColor whiteColor];
       }
     }
       break;
   }
+
+  return hintColor;
 }
 
 - (CGPoint)gestureHintOffset:(LXMTableViewRowGestureHintType)hintType {
+
+  CGPoint hintOffset;
   
   switch (hintType) {
     case LXMTableViewRowGestureHintCompletion:
-      return (CGPoint){MAX(self.actualContentView.frame.origin.x - self.gestureHintWidth, 0), 5};
+      hintOffset = (CGPoint){MAX(self.actualContentView.frame.origin.x - self.gestureHintWidth, 0), 5};
       break;
       
     case LXMTableViewRowGestureHintDeletion:
-      return (CGPoint){MIN((self.bounds.size.width - self.gestureHintWidth) + (self.actualContentView.frame.origin.x + self.gestureHintWidth), self.bounds.size.width - self.gestureHintWidth), 5};
+      hintOffset = (CGPoint){MIN((self.bounds.size.width - self.gestureHintWidth) + (self.actualContentView.frame.origin.x + self.gestureHintWidth), self.bounds.size.width - self.gestureHintWidth), 5};
       break;
   }
+
+  return hintOffset;
 }
 
 - (void)recoverCellAfterEdit {
@@ -260,10 +267,8 @@ static CGFloat kRightMargin = 16.0f;
 }
 
 - (BOOL)isUserInteractionEnabled {
-  
-  self.strikeThroughText.userInteractionEnabled = !self.todoItem.isCompleted;
-  
-  return super.userInteractionEnabled;
+
+  return self.isModifying;
 }
 
 @end

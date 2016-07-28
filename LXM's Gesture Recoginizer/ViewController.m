@@ -48,7 +48,15 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
                     @"左划删除", 
                     @"Pinch 新建", 
                     @"向下拖动新建", 
-                    @"长按移动"];
+                    @"长按移动",
+                    @"长按移动1",
+                    @"长按移动2",
+                    @"长按移动3",
+                    @"长按移动4",
+                    @"长按移动5",
+                    @"长按移动6",
+                    @"长按移动7",
+                    @"长按移动8"];
   [array enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
     [self.todoItems addObject:[LXMTodoItem todoItemWithText:obj]];
   }];
@@ -97,8 +105,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
     obj.layer.transform = CATransform3DIdentity;
   }];
-  self.tableView.contentOffset = self.tableViewState.lastContentOffset;
-  self.tableView.contentInset = self.tableViewState.lastContentInset;
+  [self.tableViewState recoverTableViewContentOffsetAndInset];
 }
 
 - (void)test:(CADisplayLink *)displayLink {
@@ -138,6 +145,20 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   NSLog(@"offset2: %f", self.tableView.contentOffset.y + 120);*/
 }
 
+#pragma mark - getters
+
+- (NSTimeInterval)keyboardAnimationDuration {
+
+  return _keyboardAnimationDuration = _keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal :
+      _keyboardAnimationDuration;
+}
+
+- (UIViewAnimationCurve)keyboardAnimationCurve {
+
+  return _keyboardAnimationCurve = _keyboardAnimationCurve == 0 ? 7 << 16 :
+      _keyboardAnimationCurve << 16;
+}
+
 #pragma mark - methods
 
 - (void)bounceRowAtIndex:(NSIndexPath *)indexPath check:(BOOL)shouldCheck {
@@ -151,7 +172,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     destinationIndexPath = [self moveDestinationIndexPathForRowAtIndexPath:indexPath];
   }
   
-  [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal 
+  [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal
                         delay:0 
        usingSpringWithDamping:0.6 
         initialSpringVelocity:8 
@@ -439,21 +460,21 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 //}
 
 - (void)resetCellAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
-  
-  LXMTransformableTableViewCell *theCell = [self.tableView cellForRowAtIndexPath:indexPath];
+
+  LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
   CGFloat cellFinishedHeight;
-  CGFloat cellHeight = theCell.frame.size.height;
+  CGFloat cellHeight = cell.frame.size.height;
   if (shouldAdd) {
     cellFinishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
   } else {
     cellFinishedHeight = 0;
   }
-  
+
   LXMAnimationQueue *animationQueue = [LXMAnimationQueue new];
   LXMAnimationBlock resetTableView;
   if (indexPath.row == 0) {
     resetTableView = ^(BOOL finished) {
-      
+
       CATransform3D identity, transform;
       if (shouldAdd) {
         ;
@@ -463,21 +484,21 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
         transform = CATransform3DRotate(identity, M_PI_2, 1, 0, 0);
         [self startAnimation];
       }
-      
+
       [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
         if (shouldAdd) {
-          for (UITableViewCell *cell in self.tableView.visibleCells) {
-            if ([self.tableView indexPathForCell:cell].row != indexPath.row) {
-              cell.frame = CGRectOffset(cell.frame, 0, -(theCell.frame.size.height - [LXMGlobalSettings sharedInstance].addingRowFinishedHeight));
+          for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
+            if ([self.tableView indexPathForCell:visibleCell].row != indexPath.row) {
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -(cell.frame.size.height - [LXMGlobalSettings sharedInstance].addingRowFinishedHeight));
             }
           }
-          theCell.frame = 
-          CGRectMake(theCell.frame.origin.x, 
-                     theCell.frame.origin.y, 
-                     theCell.frame.size.width, 
+          cell.frame =
+          CGRectMake(cell.frame.origin.x,
+                     cell.frame.origin.y,
+                     cell.frame.size.width,
                      cellFinishedHeight);
         } else {
-          ((LXMPullDownTransformableTableViewCell *)theCell).transformableView.layer.transform = transform;
+          ((LXMPullDownTransformableTableViewCell *)cell).transformableView.layer.transform = transform;
         }
       } completion:^(BOOL finished) {
         self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
@@ -490,23 +511,21 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     };
   } else {
     resetTableView = ^(BOOL finished) {
-      
       [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
-          theCell.frame = 
-          CGRectMake(theCell.frame.origin.x, 
-                     theCell.frame.origin.y, 
-                     theCell.frame.size.width, 
+          cell.frame =
+          CGRectMake(cell.frame.origin.x,
+                     cell.frame.origin.y,
+                     cell.frame.size.width,
                      cellFinishedHeight);
-        
-        self.tableView.contentInset = self.tableViewState.lastContentInset;
-        self.tableView.contentOffset = self.tableViewState.lastContentOffset;
-        
-        for (UITableViewCell *cell in self.tableView.visibleCells) {
-          if ([self.tableView indexPathForCell:cell].row > indexPath.row) {
+
+        [self.tableViewState recoverTableViewContentOffsetAndInset];
+
+        for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
+          if ([self.tableView indexPathForCell:visibleCell].row > indexPath.row) {
             if (shouldAdd) {
-              cell.frame = CGRectOffset(cell.frame, 0, self.tableView.rowHeight - cellHeight);
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, self.tableView.rowHeight - cellHeight);
             } else {
-              cell.frame = CGRectOffset(cell.frame, 0, -cellHeight);
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -cellHeight);
             }
           }
         }
@@ -517,19 +536,18 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
       }];
     };
   }
-  
-  // TODO:非常奇怪，当在未完成项目列表尾部增加 todo 时，必须访问 cell.userInteractionEnabled，动画效果才能正常。
+
   LXMAnimationBlock assignFirstResponder = ^(BOOL finished){
     [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
       LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
-      if (shouldAdd && cell.userInteractionEnabled) {
+      if (shouldAdd) {
         [cell.strikeThroughText becomeFirstResponder];
       }
     } completion:^(BOOL finished) {
       animationQueue.blockCompletion()(YES);
     }];
   };
-  
+
   [animationQueue addAnimations:resetTableView, assignFirstResponder, nil];
   [animationQueue play];
 }
@@ -670,28 +688,32 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 }
 
 - (void)tableViewCellDidBeginTextEditing:(LXMTableViewCell *)cell {
-  
-  self.tableViewState.lastContentOffset = self.tableView.contentOffset;
-  self.tableView.scrollEnabled = NO;
-  self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNoInteracting;
-  
-  NSTimeInterval duration = self.keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal : self.keyboardAnimationDuration;
-  UIViewAnimationOptions options = self.keyboardAnimationDuration < 0.01 ? UIViewAnimationOptionCurveEaseInOut : self.keyboardAnimationCurve << 16;
-  
-//  [self.tableView scrollToNearestSelectedRowAtScrollPosition:UITableViewScrollPositionTop animated:YES];
-//  [self.tableView scrollToRowAtIndexPath:[self.tableView indexPathForCell:cell] atScrollPosition:UITableViewScrollPositionTop animated:YES];
 
-  [UIView animateWithDuration:duration delay:0 options:options animations:^{
-    self.tableView.contentOffset = 
+  cell.isModifying = YES;
+
+  [self.tableViewState saveTableViewLastContentOffsetAndInset];
+  self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNoInteracting;
+
+  // 重要：如不设置 contentInset.bottom，当点击屏幕上最后几个 cell 时会出现意想不到的情况。
+  self.tableView.contentInset =
+      UIEdgeInsetsMake(self.tableView.contentInset.top,
+          self.tableView.contentInset.left,
+          self.tableView.contentInset.bottom + self.tableView.bounds.size.height - self.tableView.rowHeight,
+          self.tableView.contentInset.right);
+
+  [UIView animateWithDuration:self.keyboardAnimationDuration delay:0 options:self.keyboardAnimationCurve animations:^{
+    self.tableView.contentOffset =
     (CGPoint){self.tableView.contentOffset.x, cell.frame.origin.y - self.tableView.contentInset.top};
 
     for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
       if (cell != visibleCell) {
         visibleCell.alpha = 0.3;
-        visibleCell.userInteractionEnabled = NO;
       }
     }
-  } completion:nil];
+  } completion:^(BOOL finished){
+    self.tableView.scrollEnabled = NO;
+    self.tableView.bounces = NO;
+  }];
 }
 
 - (BOOL)tableViewCellShouldEndTextEditing:(LXMTableViewCell *)cell {
@@ -701,28 +723,24 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 - (void)tableViewCellDidEndTextEditing:(LXMTableViewCell *)cell {
   
-  self.tableView.scrollEnabled = YES;
-  
-  NSTimeInterval duration = self.keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal : self.keyboardAnimationDuration;
-  UIViewAnimationOptions options = self.keyboardAnimationDuration < 0.01 ? UIViewAnimationOptionCurveEaseInOut : self.keyboardAnimationCurve << 16;
-  
-  [UIView animateWithDuration:duration delay:0 options:options animations:^{
-    self.tableView.contentOffset = self.tableViewState.lastContentOffset;
+  [UIView animateWithDuration:self.keyboardAnimationDuration delay:0 options:self.keyboardAnimationCurve animations:^{
     for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
       if (cell != visibleCell) {
         visibleCell.alpha = 1.0f;
       }
     }
+    [self.tableViewState recoverTableViewContentOffsetAndInset];
   } completion:^(BOOL finished) {
-    [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-      obj.userInteractionEnabled = YES;
-    }];
+    self.tableView.scrollEnabled = YES;
+    self.tableView.bounces = YES;
+    cell.isModifying = NO;
+
+    self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
     if ([cell.strikeThroughText.text isEqualToString:@""]) {
       [self deleteRowAtIndexPath:[self.tableView indexPathForCell:cell]];
     } else {
       [self.tableView reloadData];
     }
-    self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNone;
   }];
 }
 

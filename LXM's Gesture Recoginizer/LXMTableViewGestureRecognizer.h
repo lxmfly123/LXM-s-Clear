@@ -8,12 +8,20 @@
 
 #import <UIKit/UIKit.h>
 #import "LXMTableViewState.h"
-
-@class LXMTableViewCell;
+#import "LXMTableViewCell.h"
 
 extern CGFloat const LXMTableViewRowAnimationDurationNormal;
 extern CGFloat const LXMTableViewRowAnimationDurationShort;
 extern CGFloat const LXMTableViewRowAnimationDurationLong;
+
+typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
+  LXMTableViewGestureRecognizerStateNone,
+  LXMTableViewGestureRecognizerStatePinching,
+  LXMTableViewGestureRecognizerStatePanning,
+  LXMTableViewGestureRecognizerStateMoving,
+  LXMTableViewGestureRecognizerStateDragging,
+  LXMTableViewGestureRecognizerStateNoInteracting,
+};
 
 @interface LXMTableViewGestureRecognizer : NSObject <UITableViewDelegate>
 

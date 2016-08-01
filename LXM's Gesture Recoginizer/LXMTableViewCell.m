@@ -16,9 +16,6 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
   LXMTableViewRowGestureHintDeletion,
 };
 
-static CGFloat kLeftMargin = 16.0f;
-static CGFloat kRightMargin = 16.0f;
-
 @interface LXMTableViewCell () <UITextFieldDelegate>
 
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
@@ -32,13 +29,6 @@ static CGFloat kRightMargin = 16.0f;
 @end
 
 @implementation LXMTableViewCell
-
-- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
-  
-    [super setSelected:selected animated:animated];
-
-    // Configure the view for the selected state
-}
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
   
@@ -81,6 +71,11 @@ static CGFloat kRightMargin = 16.0f;
     self.strikeThroughText.parentCell = self;
   }
   return self;
+}
+
+- (instancetype)initWithReuseIdentifier:(NSString *)reuseIdentifier {
+
+  return [self initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdentifier];
 }
 
 - (void)layoutGestureHintLabels {
@@ -169,7 +164,7 @@ static CGFloat kRightMargin = 16.0f;
 
 - (CGPoint)gestureHintOffset:(LXMTableViewRowGestureHintType)hintType {
 
-  CGPoint hintOffset;
+  CGPoint hintOffset = CGPointZero;
   
   switch (hintType) {
     case LXMTableViewRowGestureHintCompletion:
@@ -240,7 +235,7 @@ static CGFloat kRightMargin = 16.0f;
 
 - (BOOL)textFieldShouldBeginEditing:(UITextField *)textField {
   
-  return YES && [self.delegate tableViewCellShouldBeginTextEditing:self];
+  return [self.delegate tableViewCellShouldBeginTextEditing:self];
 }
 
 - (void)textFieldDidBeginEditing:(UITextField *)textField {
@@ -257,7 +252,7 @@ static CGFloat kRightMargin = 16.0f;
 
 - (BOOL)textFieldShouldEndEditing:(UITextField *)textField {
   
-  return YES && [self.delegate tableViewCellShouldEndTextEditing:self];;
+  return [self.delegate tableViewCellShouldEndTextEditing:self];;
 }
 
 - (void)textFieldDidEndEditing:(UITextField *)textField {

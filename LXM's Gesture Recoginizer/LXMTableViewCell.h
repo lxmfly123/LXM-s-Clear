@@ -40,6 +40,8 @@ typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
 @property (nonatomic, strong) LXMStrikeThroughText *strikeThroughText;
 @property  (nonatomic, assign) BOOL isModifying;
 
+- (instancetype)initWithReuseIdentifier:(NSString *)reuseIdentifier;
+
 //- (void)saveLastStates;
 //- (void)updateViewBackgroundColorWithPercentage:(CGFloat)percentage;
 

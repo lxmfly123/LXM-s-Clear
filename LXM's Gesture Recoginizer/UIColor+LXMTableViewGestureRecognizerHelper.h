@@ -12,7 +12,7 @@
 
 + (instancetype)colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage;
 
-- (instancetype)colorWithBrightnessCompenent:(CGFloat)brightnessCompenent;
+- (instancetype)colorWithBrightnessComponent:(CGFloat)brightnessComponent;
 - (instancetype)colorWithBrightnessOffset:(CGFloat)brightnessOffset;
 - (UIColor *)colorWithHueOffset:(CGFloat)hueOffset;
 

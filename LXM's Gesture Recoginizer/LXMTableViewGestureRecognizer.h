@@ -72,12 +72,12 @@ gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didChangeContentVi
 @end
 
 
-// long press to drag a row to any indexPath;
+/// 长按拖动，重新排序。
 @protocol LXMTableViewGestureMoveRowDelegate <NSObject>
 
-/// 能否移动一个行
+/// 能否拖动一个行
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canMoveRowAtIndexPath:(NSIndexPath *)indexPath;
-/// 为移动的行创建一个占位行
+/// 为拖动的行创建一个占位行
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCreatePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath;
 /// 随着移动的行移动占位行
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsMovePlaceholderForRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath;

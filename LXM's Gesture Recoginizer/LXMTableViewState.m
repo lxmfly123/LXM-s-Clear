@@ -9,13 +9,15 @@
 #import "LXMTableViewState.h"
 #import "LXMGlobalSettings.h" 
 
-NSString *LXMEditCompleteNotification = @"EditComplete";
+NSString *const LXMOperationCompleteNotification = @"OperationComplete";
 
 @interface LXMTableViewState ()
 
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
 
-@property (nonatomic, strong, readwrite) NSArray<NSIndexPath *> *uneditableIndexPathes;
+@property (nonatomic, assign) CGPoint lastContentOffset;
+@property (nonatomic, assign) UIEdgeInsets lastContentInset;
+@property (nonatomic, strong, readwrite) NSArray<NSIndexPath *> *uneditableIndexPaths;
 @property (nonatomic, strong, readwrite) UIView *assistView;
 
 @end
@@ -38,24 +40,23 @@ NSString *LXMEditCompleteNotification = @"EditComplete";
   static dispatch_once_t oncePredicate;
   dispatch_once(&oncePredicate, ^{
     singleInstance = [LXMTableViewState new];
-    singleInstance.lastContentOffset = CGPointZero;
   });
   return singleInstance;
 }
 
-- (NSArray<NSIndexPath *> *)uneditableIndexPathes {
+- (NSArray<NSIndexPath *> *)uneditableIndexPaths {
   
   NSMutableArray *tempArray = [[NSMutableArray alloc] initWithArray:self.bouncingCells];
   [tempArray addObjectsFromArray:self.floatingCells];
   if (self.panningCell) {
     [tempArray addObject:self.panningCell];
   }
-  NSMutableArray<NSIndexPath *> *indexPathes = [[NSMutableArray alloc] initWithCapacity:5];
+  NSMutableArray<NSIndexPath *> *indexPaths = [[NSMutableArray alloc] initWithCapacity:5];
   [tempArray enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-    [indexPathes addObject:[self.tableView indexPathForCell:obj]];
+    [indexPaths addObject:[self.tableView indexPathForCell:obj]];
   }];
-  _uneditableIndexPathes = [NSArray arrayWithArray:indexPathes];
-  return _uneditableIndexPathes;
+  _uneditableIndexPaths = [NSArray arrayWithArray:indexPaths];
+  return _uneditableIndexPaths;
 }
 
 - (UIView *)assistView {

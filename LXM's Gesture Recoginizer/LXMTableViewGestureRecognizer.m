@@ -25,17 +25,18 @@ typedef struct {
   CGFloat c;
 } LXMPanOffsetXParameters;
 
-/* Make a rect from `(n, k, m)'. */
 CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat k, CGFloat m) {
-  
-  CGFloat b = (1 - k * n * log(m)) / (k * log(m));
-  CGFloat c = k * n - log(n + b) / log(m);
+
+  CGFloat b = (1 - k * n * logf(m)) / (k * logf(m));
+  CGFloat c = k * n - logf(n + b) / logf(m);
   return (LXMPanOffsetXParameters){n, k, m, b, c};
-}
+} ///< Make a rect from '(n, k, m)', see http://lxm9.com/2016/04/19/sliding-damping-in-clear-the-app/.
 
 CGFloat const LXMTableViewRowAnimationDurationNormal = 0.25f;
 CGFloat const LXMTableViewRowAnimationDurationShort = 0.15f;
 CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
+
+CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 table view 顶部或底部时，table view 的滚动速度。
 
 #define CELL_SNAPSHOT_TAG 100000
 
@@ -52,14 +53,11 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 @property (nonatomic, strong) UITapGestureRecognizer *tapRecognizer;
 @property (nonatomic, strong) UIPinchGestureRecognizer *pinchRecognizer;
-@property (nonatomic, strong) UIPanGestureRecognizer *panRecognizer;
+@property (nonatomic, strong) UIPanGestureRecognizer *horizontalPanRecognizer;
 @property (nonatomic, strong) UILongPressGestureRecognizer *longPressRecognizer;
 
 #pragma mark Pinch Helper Properties
-@property (nonatomic, assign) UIEdgeInsets startingTableViewContentInset;
-@property (nonatomic, assign) CGPoint startingTableViewContentOffset;
 @property (nonatomic, assign) LXMPinchPoints startingPinchPoints;
-//@property (nonatomic, strong) CADisplayLink *displayLink;
 
 #pragma mark LongPress Helper Properties
 /// 每 0.125 秒判断一次是否需要滚动 tableView。
@@ -88,7 +86,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 - (void)dealloc {
   
-  [[NSNotificationCenter defaultCenter] removeObserver:self.panRecognizer];
+  [[NSNotificationCenter defaultCenter] removeObserver:self.horizontalPanRecognizer];
 }
 
 #pragma mark - Init Helper Methods
@@ -101,20 +99,19 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   self.tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
   [self.tableView addGestureRecognizer:self.tapRecognizer];
   
-  //pinch recognizer
-  UIPinchGestureRecognizer *pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
-  pinchRecognizer.delegate = self;
-  self.pinchRecognizer = pinchRecognizer;
+  // pinch recognizer
+  self.pinchRecognizer = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(handlePinch:)];
+  self.pinchRecognizer.delegate = self;
   [self.tableView addGestureRecognizer:self.pinchRecognizer];
 
-  //pan recognizer
-  UIPanGestureRecognizer *panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
-  panRecognizer.delegate = self;
-  self.panRecognizer = panRecognizer;
-  [self.tableView addGestureRecognizer:self.panRecognizer];
+  // horizontal pan recognizer
+  self.horizontalPanRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector
+  (handleHorizontalPan:)];
+  self.horizontalPanRecognizer.delegate = self;
+  [self.tableView addGestureRecognizer:self.horizontalPanRecognizer];
   
   [[NSNotificationCenter defaultCenter] 
-   addObserverForName:LXMEditCompleteNotification  
+   addObserverForName:LXMOperationCompleteNotification
    object:nil 
    queue:nil 
    usingBlock:^(NSNotification * _Nonnull note) {
@@ -149,7 +146,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 #pragma mark - Gesture Recognizer Helper Methods 
 
-- (void)collectGestureStartingInfomation {
+- (void)collectGestureStartingInformation {
   
   if (self.state == LXMTableViewGestureRecognizerStatePinching) {
 //    self.startingTableViewContentOffset = self.tableView.contentOffset;
@@ -158,7 +155,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
     self.startingPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer];
     self.addingCellIndexPath = [self targetIndexPathForPinchPoints:[self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer]];
   } else if (self.state == LXMTableViewGestureRecognizerStatePanning) {
-    NSIndexPath *panningIndexPath = [self.tableView indexPathForRowAtPoint:[self.panRecognizer locationInView:self.tableView]];
+    NSIndexPath *panningIndexPath = [self.tableView indexPathForRowAtPoint:[self.horizontalPanRecognizer locationInView:self.tableView]];
     [LXMTableViewState sharedInstance].panningCell = [self.tableView cellForRowAtIndexPath:panningIndexPath];;
   } else if (self.state == LXMTableViewGestureRecognizerStateMoving) {
     // TODO: longpress
@@ -218,16 +215,13 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   return distanceInY;
 }
 
-/// long press gesture recognizer helper method
+#pragma mark - long press gesture recognizer helper methods
 
 - (void)updateAddingIndexPathForCurrentLocation {
-  
-  NSIndexPath *indexPath = nil;
-  CGPoint location = CGPointZero;
-  
-  // 更新 indexPath
-  location = [self.longPressRecognizer locationInView:self.tableView];
-  indexPath = [self.tableView indexPathForRowAtPoint:location];
+
+  CGPoint location = [self.longPressRecognizer locationInView:self.tableView];;
+  NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:location];
+
   if (indexPath && ![indexPath isEqual:self.addingCell]) {
     [self.tableView beginUpdates];
     [self.tableView deleteRowsAtIndexPaths:@[self.addingCellIndexPath] withRowAnimation:UITableViewRowAnimationNone];
@@ -238,32 +232,39 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   }
 }
 
-/// 当长按拖动时触摸点移到屏幕底/顶部时，滚动 table view。
+/// 由 movingTimer 定期调用，按 scrollingRate 滚动 table view。
 - (void)scrollTable {
   
-  CGPoint location = CGPointZero;
-  location = [self.longPressRecognizer locationInView:self.tableView];
+  CGPoint location = [self.longPressRecognizer locationInView:self.tableView];
   
-  CGPoint currentOffset = self.tableView.contentOffset;
-  CGPoint newOffset = CGPointMake(currentOffset.x, currentOffset.y + self.scrollingRate);
-  
-  if (newOffset.y < -self.tableView.contentInset.top) {
-    newOffset.y = 0;
-  } else if (self.tableView.contentSize.height < self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom) {
-    newOffset = currentOffset;
-  } else if (newOffset.y > self.tableView.contentSize.height - (self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom)) {
-    newOffset.y = self.tableView.contentSize.height - (self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom);
-  } else {
-    //TODO: Just in case
-    NSLog(@"Oops, something unexpected happened...");
-  }
-  
-  [self.tableView setContentOffset:newOffset];
-  
-  if (location.y >= self.tableView.contentInset.top) {
-    UIImageView *cellSnapshot = (id)[self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
-    cellSnapshot.center = CGPointMake(self.tableView.center.x, location.y);
-  }
+  CGPoint currentContentOffset = self.tableView.contentOffset;
+  CGPoint __block newContentOffset = CGPointMake(currentContentOffset.x, currentContentOffset.y + self.scrollingRate);
+
+  // FIXME: 用线性动画块包起来执行，不会很卡，但是每经过一行，就稍有停顿。
+  [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationCurveLinear animations:^{
+    if (newContentOffset.y < -self.tableView.contentInset.top) {
+      // 如果 table view 将要滚动超过顶部，就让它停在顶部。
+      newContentOffset.y = 0;
+    } else if (self.tableView.contentSize.height < self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom) {
+      // 如果 table view 的内容不满一屏，不改变其 contentOffset。
+      newContentOffset = currentContentOffset;
+    } else if (newContentOffset.y > self.tableView.contentSize.height - (self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom)) {
+      // 如果 table view 的内容已经超出一屏且将要滚动到底部。
+      NSLog(@"stop scroll");
+      newContentOffset.y = self.tableView.contentSize.height - (self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom);
+    } else {
+      // 滚动一个 scrollingRate 的长度。（scrollingRate 有可能为零）
+      NSLog(@"scrolling rate is ZERO. ");
+    }
+
+    [self.tableView setContentOffset:newContentOffset];
+
+    // 更新 cell 位图快照的位置，跟随手指位置。
+    if (location.y >= self.tableView.contentInset.top) {
+      UIImageView *cellSnapshot = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
+      cellSnapshot.center = CGPointMake(self.tableView.center.x, location.y);
+    }
+  } completion:nil];
     
 }
 
@@ -273,13 +274,13 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   
   CGFloat offsetX;
   
-  if (ABS([self.panRecognizer translationInView:self.tableView].x) < parameters.n) {
-    offsetX = parameters.k * [self.panRecognizer translationInView:self.tableView].x;
+  if (ABS([self.horizontalPanRecognizer translationInView:self.tableView].x) < parameters.n) {
+    offsetX = parameters.k * [self.horizontalPanRecognizer translationInView:self.tableView].x;
   } else {
-    if ([self.panRecognizer translationInView:self.tableView].x < 0) {
-      offsetX = -((log(-[self.panRecognizer translationInView:self.tableView].x + parameters.b) / log(parameters.m)) + parameters.c); 
+    if ([self.horizontalPanRecognizer translationInView:self.tableView].x < 0) {
+      offsetX = -((logf(-[self.horizontalPanRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c);
     } else {
-      offsetX = (log([self.panRecognizer translationInView:self.tableView].x + parameters.b) / log(parameters.m)) + parameters.c; 
+      offsetX = (logf([self.horizontalPanRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c;
     }
   }
   
@@ -288,19 +289,19 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 - (void)commitOrDiscardCell {
   
-  CGFloat commitingCellHeight = self.addingRowHeight;
-  NSIndexPath *commitingCellIndexPath = self.addingCellIndexPath;
+  CGFloat committingCellHeight = self.addingRowHeight;
+  NSIndexPath *committingCellIndexPath = self.addingCellIndexPath;
   self.addingCellIndexPath = nil;
   self.addingRowHeight = 0;
   
   if ([self.delegate respondsToSelector:@selector(gestureRecognizer:heightForCommitingRowAtIndexPath:)]) {
-    commitingCellHeight = [self.delegate gestureRecognizer:self heightForCommitingRowAtIndexPath:commitingCellIndexPath];
+    committingCellHeight = [self.delegate gestureRecognizer:self heightForCommitingRowAtIndexPath:committingCellIndexPath];
   }
 
-  if (commitingCellHeight < self.tableView.rowHeight) {
-    [self.delegate gestureRecognizer:self needsDiscardRowAtIndexPath:commitingCellIndexPath];
+  if (committingCellHeight < self.tableView.rowHeight) {
+    [self.delegate gestureRecognizer:self needsDiscardRowAtIndexPath:committingCellIndexPath];
   } else {
-    [self.delegate gestureRecognizer:self needsCommitRowAtIndexPath:commitingCellIndexPath];
+    [self.delegate gestureRecognizer:self needsCommitRowAtIndexPath:committingCellIndexPath];
   }
 }
 
@@ -331,29 +332,28 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
         return YES;
     }
     
-  } else if (recognizer == self.panRecognizer) {
-    // Pan 
+  } else if (recognizer == self.horizontalPanRecognizer) {
+    // Pan
     if (![self.delegate conformsToProtocol:@protocol(LXMTableViewGestureEditingRowDelegate)]) {
       return NO;
     }
-    CGPoint translation = [self.panRecognizer translationInView:self.tableView];
-    CGPoint location = [self.panRecognizer locationInView:self.tableView];
+    CGPoint translation = [self.horizontalPanRecognizer translationInView:self.tableView];
+    CGPoint location = [self.horizontalPanRecognizer locationInView:self.tableView];
     NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:location];
-    BOOL isSlidingHorizentally = fabs(translation.x) > fabs(translation.y);
+    BOOL isSlidingHorizontally = fabs(translation.x) > fabs(translation.y);
     BOOL canEdit = [self.delegate gestureRecognizer:self canEditRowAtIndexPath:indexPath];
-    
+
     if (!indexPath) {
       NSLog(@"no indexpath");
       return NO;
     }
     
-    if (!isSlidingHorizentally) {
-      NSLog(@"scroll");
-      return NO;
-    } 
-    
     if (!canEdit) {
       NSLog(@"can not edit row");
+      return NO;
+    }
+
+    if (!isSlidingHorizontally) {
       return NO;
     }
     
@@ -370,7 +370,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
-  if (gestureRecognizer == self.panRecognizer) {
+  if (gestureRecognizer == self.horizontalPanRecognizer) {
     if (otherGestureRecognizer == self.pinchRecognizer) {
       return NO;
     }
@@ -400,7 +400,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   
   if (recognizer.state == UIGestureRecognizerStateBegan) {
     self.state = LXMTableViewGestureRecognizerStatePinching;
-    [self collectGestureStartingInfomation];
+    [self collectGestureStartingInformation];
     NSAssert(self.addingCellIndexPath != nil, @"self.addingIndexPath must not be nil, we should have set it in recognizerShouldBegin");
     self.tableView.contentInset = 
     UIEdgeInsetsMake(self.tableView.contentInset.top + self.tableView.bounds.size.height, 
@@ -441,9 +441,7 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   }
 }
 
-
-
-- (void)handlePan:(UIPanGestureRecognizer *)panRecognizer {
+- (void)handleHorizontalPan:(UIPanGestureRecognizer *)panRecognizer {
   
   static LXMTableViewCellEditingState lastEditingState = LXMTableViewCellEditingStateNone;
   static NSIndexPath *panningIndexPath;
@@ -451,16 +449,18 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   
   if (panRecognizer.state == UIGestureRecognizerStateBegan) {
     self.state = LXMTableViewGestureRecognizerStatePanning;
-    [self collectGestureStartingInfomation];
+    [self collectGestureStartingInformation];
     panningCell = [LXMTableViewState sharedInstance].panningCell;
     panningIndexPath = [self.tableView indexPathForCell:panningCell];
   } else if (panRecognizer.state == UIGestureRecognizerStateChanged) {
     CGFloat offsetX;
     if ([panRecognizer translationInView:self.tableView].x > 0) {
-      LXMPanOffsetXParameters completionParameters = LXMPanOffsetXParametersMake([LXMGlobalSettings sharedInstance].editCommitTriggerWidth, 0.9, 1.07);
+      LXMPanOffsetXParameters completionParameters = LXMPanOffsetXParametersMake([LXMGlobalSettings sharedInstance]
+          .editCommitTriggerWidth, 0.9f, 1.07f);
       offsetX = [self panOffsetXForParameters:completionParameters];
     } else {
-      LXMPanOffsetXParameters deletionParameters = LXMPanOffsetXParametersMake([LXMGlobalSettings sharedInstance].editCommitTriggerWidth, 0.75, 1.01);
+      LXMPanOffsetXParameters deletionParameters = LXMPanOffsetXParametersMake([LXMGlobalSettings sharedInstance]
+          .editCommitTriggerWidth, 0.75f, 1.01f);
       offsetX = [self panOffsetXForParameters:deletionParameters];
     }
     
@@ -506,39 +506,48 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
   NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:location];
   
   if (longPressRecognizer.state == UIGestureRecognizerStateBegan) {
+    NSLog(@"Start moving.");
     self.state = LXMTableViewGestureRecognizerStateMoving;
-    NSLog(@"moving");
+
+    // 获取拖动 cell 的位图快照。
     UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
     UIGraphicsBeginImageContextWithOptions(cell.bounds.size, NO, 0);
     [cell.layer renderInContext:UIGraphicsGetCurrentContext()];
-    UIImage *cellImage = UIGraphicsGetImageFromCurrentImageContext();
+    self.cellSnapshot = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    
-    UIImageView *snapshotView = (UIImageView *)[self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
+
+    // 将位图快照作为 UIImageView 覆盖显示在拖动 cell 的位置上。
+    UIImageView *snapshotView = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
     if (!snapshotView) {
-      snapshotView = [[UIImageView alloc] initWithImage:cellImage];
+      snapshotView = [[UIImageView alloc] initWithImage:self.cellSnapshot];
       snapshotView.tag = CELL_SNAPSHOT_TAG;
       [self.tableView addSubview:snapshotView];
       snapshotView.frame = [self.tableView rectForRowAtIndexPath:indexPath];
     }
-    
+
+    // （动画）将快照长宽放大至 1.1 倍。
     [UIView beginAnimations:@"zoonCell" context:nil];
     snapshotView.transform = CGAffineTransformMakeScale(1.1, 1.1);
     snapshotView.center = CGPointMake(self.tableView.center.x, location.y);
     [UIView commitAnimations];
-    
+
+    // 在原位置创建占位行。
+    // TODO: 可以全放在代理方法里。
     [self.tableView beginUpdates];
     [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
     [self.tableView insertRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
     [self.delegate gestureRecognizer:self needsCreatePlaceholderForRowAtIndexPath:indexPath];
     self.addingCellIndexPath = indexPath;
     [self.tableView endUpdates];
-      
-    self.movingTimer = [NSTimer timerWithTimeInterval:0.125 target:self selector:@selector(scrollTable) userInfo:nil repeats:YES];
+
+    // 设置每 0.125 秒检测一次当前位置，按需要滚动 table view。
+    // TODO: 动画卡，应该放在 NSDisplayLink 中。
+    self.movingTimer = [NSTimer timerWithTimeInterval:0.125 target:self selector:@selector(scrollTable)
+                                             userInfo:nil repeats:YES];
     [[NSRunLoop mainRunLoop] addTimer:self.movingTimer forMode:NSDefaultRunLoopMode];
     
   } else if (longPressRecognizer.state == UIGestureRecognizerStateEnded) {
-    __weak __block UIImageView *snapshotView = (UIImageView *)[self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
+    __weak __block UIImageView *snapshotView = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
     __weak __block LXMTableViewGestureRecognizer *weakSelf = self;
     __weak __block NSIndexPath *indexPath = self.addingCellIndexPath;
     
@@ -565,23 +574,22 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
       weakSelf.state = LXMTableViewGestureRecognizerStateNone;
     }];
   } else if (longPressRecognizer.state == UIGestureRecognizerStateChanged) {
-    
-    UIImageView *snapshotView = (UIImageView *)[self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
+    // 随手指移动 cell 快照，当移动到 table view 顶部或者底部时，滚动 table view。
+    UIImageView *snapshotView = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
     snapshotView.center = CGPointMake(self.tableView.center.x, location.y);
-    
+
     CGRect rect = self.tableView.bounds;
     CGPoint location = [self.longPressRecognizer locationInView:self.tableView];
-    // TODO: to be fixed
     location.y -= self.tableView.contentOffset.y;
     [self updateAddingIndexPathForCurrentLocation];
     
-    CGFloat bottomDropZoneHeight = self.tableView.bounds.size.height / 6;
-    CGFloat topDropZoneHeight = bottomDropZoneHeight;
-    CGFloat bottomDiff = location.y - (rect.size.height - bottomDropZoneHeight);
-    if (bottomDiff > 0) {
-      self.scrollingRate = bottomDiff / (bottomDropZoneHeight / 1);
-    } else if (location.y <= topDropZoneHeight) {
-      self.scrollingRate = -(topDropZoneHeight - MAX(location.y, 0));
+    CGFloat dropZoneHeight = self.tableView.bounds.size.height / 6;
+
+    // FIXME: 动画速度太慢且太卡
+    if (location.y > rect.size.height - dropZoneHeight) {
+      self.scrollingRate = kScrollingRate;
+    } else if (location.y < dropZoneHeight) {
+      self.scrollingRate = -kScrollingRate;
     } else {
       self.scrollingRate = 0;
     }
@@ -594,8 +602,9 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 /*
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
   
-  if (scrollView.contentOffset.y <= -self.tableView.contentInset.top && [[LXMTableViewState sharedInstance].uneditableIndexPathes count] == 0) {
-    if (self.state == LXMTableViewGestureRecognizerStateNone && 
+  if (scrollView.contentOffset.y <= -self.tableView.contentInset.top && [[LXMTableViewState sharedInstance].uneditableIndexPaths count] == 0) {
+    if (self.state == LXMTableViewGestureRecognizerStateNone &&
+
         [scrollView.panGestureRecognizer translationInView:scrollView].y > 0) {
       self.addingCellIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
       self.state = LXMTableViewGestureRecognizerStateDragging;
@@ -692,7 +701,9 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
 
 #pragma mark - UITableViewDelegate
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
+
   CGFloat rowHeight;
+
   if (self.addingCellIndexPath && [indexPath isEqual:self.addingCellIndexPath]) {
     if (self.state == LXMTableViewGestureRecognizerStatePinching ||
         self.state == LXMTableViewGestureRecognizerStateDragging) {
@@ -700,11 +711,10 @@ CGFloat const LXMTableViewRowAnimationDurationLong = 0.50f;
     } else {
       rowHeight = self.tableView.rowHeight;
     }
-  } else if ([self.tableViewDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)]) {
-    rowHeight = [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath];
   } else {
-    rowHeight = self.tableView.rowHeight;
+    rowHeight = [self.tableViewDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)] ? [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath] : self.tableView.rowHeight;
   }
+
   return rowHeight;
 }
 

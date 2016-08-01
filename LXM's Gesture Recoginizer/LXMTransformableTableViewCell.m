@@ -62,8 +62,8 @@
   self.transformable1HalfView.layer.transform = transform1;
   self.transformable2HalfView.layer.transform = transform2;
     
-  self.transformable1HalfView.backgroundColor = [self.tintColor colorWithBrightnessCompenent:0.3 + 0.7 * fraction];
-  self.transformable2HalfView.backgroundColor = [self.tintColor colorWithBrightnessCompenent:0.5 + 0.5 * fraction];
+  self.transformable1HalfView.backgroundColor = [self.tintColor colorWithBrightnessComponent:0.3f + 0.7f * fraction];
+  self.transformable2HalfView.backgroundColor = [self.tintColor colorWithBrightnessComponent:0.5f + 0.5f * fraction];
   
   CGSize contentViewSize = self.contentView.frame.size;
   CGFloat labelHeight = self.finishedHeight / 2;
@@ -82,7 +82,7 @@
   
   self.textLabel.frame = CGRectMake([LXMGlobalSettings sharedInstance].textFieldLeftMargin + [LXMGlobalSettings sharedInstance].textFieldLeftPadding, 
                                     0, 
-                                    contentViewSize.width - 20.0, 
+                                    contentViewSize.width - 20.0f,
                                     self.finishedHeight);
   self.detailTextLabel.frame = CGRectOffset(self.textLabel.frame, 0, -self.finishedHeight / 2);
 
@@ -147,25 +147,25 @@
   
   CGSize contentViewSize = self.contentView.frame.size;
   CGFloat labelHeight = self.finishedHeight;
-  CGFloat angle = acos(self.fraction);
+  CGFloat angle = acosf(self.fraction);
   
-  self.transformableView.backgroundColor = [self.tintColor colorWithBrightnessCompenent:0.5 + 0.5 * self.fraction];
+  self.transformableView.backgroundColor = [self.tintColor colorWithBrightnessComponent:0.5f + 0.5f * self.fraction];
   if ([LXMTableViewState sharedInstance].addingProgress < 1) {
     self.transformableView.frame = CGRectMake(0, self.transformableView.frame.size.height - labelHeight, self.frame.size.width, labelHeight);
-    CATransform3D idenity = CATransform3DIdentity;
-    idenity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
-    CATransform3D transform = CATransform3DRotate(idenity, angle, 1, 0, 0);
+    CATransform3D identity = CATransform3DIdentity;
+    identity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
+    CATransform3D transform = CATransform3DRotate(identity, angle, 1, 0, 0);
     self.transformableView.layer.transform = transform;
   } else {
     self.transformableView.frame = CGRectMake(0, self.frame.size.height - labelHeight, self.frame.size.width, labelHeight);
-    CATransform3D idenity = CATransform3DIdentity;
-    idenity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
-    self.transformableView.layer.transform = idenity;
+    CATransform3D identity = CATransform3DIdentity;
+    identity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
+    self.transformableView.layer.transform = identity;
   }
   
   self.textLabel.frame = CGRectMake([LXMGlobalSettings sharedInstance].textFieldLeftMargin + [LXMGlobalSettings sharedInstance].textFieldLeftPadding, 
                                    0, 
-                                   contentViewSize.width - 20.0, 
+                                   contentViewSize.width - 20.0f,
                                    self.finishedHeight);
 }
 
@@ -184,15 +184,22 @@
 @synthesize finishedHeight;
 
 + (instancetype)transformableTableViewCellWithStyle:(LXMTransformableTableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
+
+  LXMTransformableTableViewCell *cell;
+
   switch (style) {
     case LXMTransformableTableViewCellStyleUnfolding:
-      return [[LXMUnfoldingTransformableTableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:reuseIdentifier];
+      cell = [[LXMUnfoldingTransformableTableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
+                                                           reuseIdentifier:reuseIdentifier];
       break;
 
     case LXMTransformableTableViewCellStylePullDown:
-      return [[LXMPullDownTransformableTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:reuseIdentifier];
+      cell = [[LXMPullDownTransformableTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                                          reuseIdentifier:reuseIdentifier];
       break;
   }
+
+  return cell;
 }
 
 - (void)awakeFromNib {

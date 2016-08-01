@@ -20,11 +20,7 @@
 }
 
 - (BOOL)toggleCompleted {
-  if (self.isCompleted) {
-    self.isCompleted = NO;
-  } else {
-    self.isCompleted = YES;
-  }
+  self.isCompleted = !self.isCompleted;
   return self.isCompleted;
 }
 

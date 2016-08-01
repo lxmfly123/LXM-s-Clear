@@ -11,7 +11,9 @@
 @implementation UIColor (LXMTableViewGestureRecognizerHelper)
 
 - (instancetype)colorWithBrightnessComponent:(CGFloat)brightnessComponent {
+
   UIColor *color;
+
   if (!color) {
     CGFloat hue, saturation, brightness, alpha;
     if ([self getHue:&hue 
@@ -26,6 +28,7 @@
   }
   
   if (!color) {
+    NSLog(@"imreachable code.");
     CGFloat red, green, blue, alpha;
     if ([self getRed:&red green:&green blue:&blue alpha:&alpha]) {
       color = [UIColor colorWithRed:red
@@ -34,6 +37,7 @@
   }
   
   if (!color) {
+    NSLog(@"imreachable code.");
     CGFloat white, alpha;
     if ([self getWhite:&white alpha:&alpha]) {
       color = [UIColor colorWithWhite:white alpha:alpha];
@@ -44,7 +48,9 @@
 }
 
 - (instancetype)colorWithBrightnessOffset:(CGFloat)brightnessOffset {
+
   UIColor *color;
+
   if (!color) {
     CGFloat hue, saturation, brightness, alpha;
     if ([self getHue:&hue 
@@ -62,14 +68,17 @@
     CGFloat red, green, blue, alpha;
     if ([self getRed:&red green:&green blue:&blue alpha:&alpha]) {
       color = [UIColor colorWithRed:red
-                              green:green blue:blue alpha:alpha];
+                              green:green
+                               blue:blue
+                              alpha:alpha];
     }
   }
   
   if (!color) {
     CGFloat white, alpha;
     if ([self getWhite:&white alpha:&alpha]) {
-      color = [UIColor colorWithWhite:white alpha:alpha];
+      color = [UIColor colorWithWhite:white
+                                alpha:alpha];
     }
   }
   
@@ -77,8 +86,10 @@
 }
 
 - (UIColor *)colorWithHueOffset:(CGFloat)hueOffset {
+
   UIColor *color;
   CGFloat hue, saturation, brightness, alpha;
+
   if ([self getHue:&hue saturation:&saturation brightness:&brightness alpha:&alpha]) {
     hue = fmodf(hue + hueOffset, 1);
     color = [UIColor colorWithHue:hue saturation:saturation brightness:brightness alpha:alpha];

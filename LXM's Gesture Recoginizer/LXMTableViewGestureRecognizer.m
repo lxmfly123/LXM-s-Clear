@@ -25,6 +25,14 @@ typedef struct {
   CGFloat c;
 } LXMPanOffsetXParameters;
 
+typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
+  LXMTableViewGestureRecognizerStateNone, ///< 正常状态，可触发任一手势，此时的 option 的也会被设置为允许识别全部手势。
+  LXMTableViewGestureRecognizerStatePinching, ///< 双指缩放。
+  LXMTableViewGestureRecognizerStatePanning, ///< 左右拖动 todo 来将其完成(或相反)或者删除。
+  LXMTableViewGestureRecognizerStateMoving, ///< 长按后上下拖动 todo 来改变其在列表中的排位。
+  LXMTableViewGestureRecognizerStateDragging, ///< 向下拖动整个列表来在顶部新建 todo。
+};
+
 CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat k, CGFloat m) {
 
   CGFloat b = (1 - k * n * logf(m)) / (k * logf(m));
@@ -45,6 +53,8 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 @property (nonatomic, weak, readwrite) UITableView *tableView;
 @property (nonatomic, weak) id <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate> delegate;
 @property (nonatomic, weak) id tableViewDelegate;
+@property (nonatomic, assign) LXMTableViewGestureRecognizerState state;
+@property (nonatomic, assign) LXMTableViewGestureRecognizerOptions options;
 
 @property (nonatomic, strong) NSIndexPath *addingCellIndexPath;
 @property (nonatomic, assign) CGFloat addingRowHeight;
@@ -53,7 +63,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 @property (nonatomic, strong) UITapGestureRecognizer *tapRecognizer;
 @property (nonatomic, strong) UIPinchGestureRecognizer *pinchRecognizer;
-@property (nonatomic, strong) UIPanGestureRecognizer *horizontalPanRecognizer;
+@property (nonatomic, strong) UIPanGestureRecognizer *panRecognizer;
 @property (nonatomic, strong) UILongPressGestureRecognizer *longPressRecognizer;
 
 #pragma mark Pinch Helper Properties
@@ -76,6 +86,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   recognizer.delegate = delegate;
   recognizer.tableView = tableView;
   recognizer.tableViewDelegate = tableView.delegate;
+  [recognizer allowAllGestures];
   tableView.delegate = recognizer;
   
   [recognizer configureGestureRecognizers];
@@ -86,7 +97,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 - (void)dealloc {
   
-  [[NSNotificationCenter defaultCenter] removeObserver:self.horizontalPanRecognizer];
+  [[NSNotificationCenter defaultCenter] removeObserver:self.panRecognizer];
 }
 
 #pragma mark - Init Helper Methods
@@ -95,7 +106,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   
   NSAssert(self.tableView, @"Table View does not exist. ");
   
-  // tap recoginizer
+  // tap recognizer
   self.tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
   [self.tableView addGestureRecognizer:self.tapRecognizer];
   
@@ -104,17 +115,18 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   self.pinchRecognizer.delegate = self;
   [self.tableView addGestureRecognizer:self.pinchRecognizer];
 
-  // horizontal pan recognizer
-  self.horizontalPanRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector
-  (handleHorizontalPan:)];
-  self.horizontalPanRecognizer.delegate = self;
-  [self.tableView addGestureRecognizer:self.horizontalPanRecognizer];
-  
+  // pan recognizer
+  self.panRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)];
+  self.panRecognizer.delegate = self;
+  [self.tableView addGestureRecognizer:self.panRecognizer];
+
+  // 注册响应操作完成的通知，将相关状态值设置为初始值。
   [[NSNotificationCenter defaultCenter] 
    addObserverForName:LXMOperationCompleteNotification
    object:nil 
    queue:nil 
    usingBlock:^(NSNotification * _Nonnull note) {
+     [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateNormal;
      self.state = LXMTableViewGestureRecognizerStateNone;
    }];
   
@@ -144,6 +156,83 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   
 }
 
+#pragma mark - setters
+
+- (void)setState:(LXMTableViewGestureRecognizerState)state {
+
+  _state = state;
+
+  if (state == LXMTableViewGestureRecognizerStateNone) {
+    [self allowAllGestures];
+  }
+}
+
+
+#pragma mark  - getters
+
+#pragma mark - options method
+
+- (void)allowAllGestures {
+  _options = LXMTableViewGestureRecognizerOptionsTap |
+                 LXMTableViewGestureRecognizerOptionsPinch |
+                 LXMTableViewGestureRecognizerOptionsHorizontalPan |
+                 LXMTableViewGestureRecognizerOptionsVerticalPan |
+                 LXMTableViewGestureRecognizerOptionsLongPress;
+
+  _state = LXMTableViewGestureRecognizerStateNone;
+}
+
+- (void)denyAllGestures {
+  _options = 0;
+}
+
+- (void)allowGesture:(LXMTableViewGestureRecognizerOptions)options {
+
+  _options = _options | options;
+}
+
+- (void)denyGestures:(LXMTableViewGestureRecognizerOptions)options {
+
+  _options = _options & (~options);
+}
+
+- (void)allowGesturesOnly:(LXMTableViewGestureRecognizerOptions)options {
+
+  _options = options;
+}
+
+- (void)denyGesturesOnly:(LXMTableViewGestureRecognizerOptions)options {
+
+  [self allowAllGestures];
+  [self denyGestures:options];
+}
+
+- (BOOL)gesturesIsAllowed:(LXMTableViewGestureRecognizerOptions)options {
+
+  for (int i = 1; i <= 5; ++i) {
+    if ([self nthBit:i ofOptions:options] == 1 &&
+        [self nthBit:i ofOptions:_options] != 1) {
+      return NO;
+    }
+  }
+
+  return YES;
+}
+
+/// 获取 options 的二进制表示的第 n 位。从右向左，首位为第 1 位，YES 表示 1, NO 表示 0。
+- (BOOL)nthBit:(NSUInteger)n ofOptions:(LXMTableViewGestureRecognizerOptions)options {
+
+  NSUInteger bitValue;
+
+  if (n == 1) {
+    bitValue = options % (1 << 1);
+  } else {
+    bitValue = (options >> (n - 1)) % (1 << 1);
+  }
+
+  return bitValue == 1 ? YES : NO;
+}
+
 #pragma mark - Gesture Recognizer Helper Methods 
 
 - (void)collectGestureStartingInformation {
@@ -155,7 +244,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     self.startingPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer];
     self.addingCellIndexPath = [self targetIndexPathForPinchPoints:[self normalizePinchPointsForPinchGestureRecognizer:self.pinchRecognizer]];
   } else if (self.state == LXMTableViewGestureRecognizerStatePanning) {
-    NSIndexPath *panningIndexPath = [self.tableView indexPathForRowAtPoint:[self.horizontalPanRecognizer locationInView:self.tableView]];
+    NSIndexPath *panningIndexPath = [self.tableView indexPathForRowAtPoint:[self.panRecognizer locationInView:self.tableView]];
     [LXMTableViewState sharedInstance].panningCell = [self.tableView cellForRowAtIndexPath:panningIndexPath];;
   } else if (self.state == LXMTableViewGestureRecognizerStateMoving) {
     // TODO: longpress
@@ -254,7 +343,6 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
       newContentOffset.y = self.tableView.contentSize.height - (self.tableView.frame.size.height - self.tableView.contentInset.top - self.tableView.contentInset.bottom);
     } else {
       // 滚动一个 scrollingRate 的长度。（scrollingRate 有可能为零）
-      NSLog(@"scrolling rate is ZERO. ");
     }
 
     [self.tableView setContentOffset:newContentOffset];
@@ -268,19 +356,18 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     
 }
 
-// pan offset, see http://lxm9.com/2016/04/19/sliding-damping-in-clear-the-app/
-
+/// pan offset, see http://lxm9.com/2016/04/19/sliding-damping-in-clear-the-app/
 - (CGFloat)panOffsetXForParameters:(LXMPanOffsetXParameters)parameters {
   
   CGFloat offsetX;
   
-  if (ABS([self.horizontalPanRecognizer translationInView:self.tableView].x) < parameters.n) {
-    offsetX = parameters.k * [self.horizontalPanRecognizer translationInView:self.tableView].x;
+  if (ABS([self.panRecognizer translationInView:self.tableView].x) < parameters.n) {
+    offsetX = parameters.k * [self.panRecognizer translationInView:self.tableView].x;
   } else {
-    if ([self.horizontalPanRecognizer translationInView:self.tableView].x < 0) {
-      offsetX = -((logf(-[self.horizontalPanRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c);
+    if ([self.panRecognizer translationInView:self.tableView].x < 0) {
+      offsetX = -((logf(-[self.panRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c);
     } else {
-      offsetX = (logf([self.horizontalPanRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c;
+      offsetX = (logf([self.panRecognizer translationInView:self.tableView].x + parameters.b) / logf(parameters.m)) + parameters.c;
     }
   }
   
@@ -308,37 +395,36 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 #pragma mark - UIGestureRecognizerDelegate
 
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)recognizer {
+
+//  if (self.state != LXMTableViewGestureRecognizerStateNone) {
+//    NSLog(@"is in state, can not start a new one. ");
+//    return NO;
+//  }
   
-  if (self.state != LXMTableViewGestureRecognizerStateNone) {
-    NSLog(@"is in state, can not start a new one. ");
-    return NO;
-  }
-  
-  if (recognizer == self.pinchRecognizer) {
+  if (recognizer == self.pinchRecognizer && [self gesturesIsAllowed:LXMTableViewGestureRecognizerOptionsPinch]) {
     // Pinch 
     if (![self.delegate conformsToProtocol:@protocol(LXMTableViewGestureAddingRowDelegate)]) {
       NSLog(@"Not conforms to protocal, pinch should not begin.");
       return NO;
     } else {
       NSIndexPath *targetIndexPath = [self targetIndexPathForPinchPoints:[self normalizePinchPointsForPinchGestureRecognizer:(UIPinchGestureRecognizer *)recognizer]];
-      
+
       if (![self.delegate gestureRecognizer:self canAddCellAtIndexPath:targetIndexPath]) {
         return NO;
       }
-      
       if ([self.delegate respondsToSelector:@selector(gestureRecognizer:willCreateCellAtIndexPath:)]) {
         [self.delegate gestureRecognizer:self willCreateCellAtIndexPath:targetIndexPath];
       }
         return YES;
     }
-    
-  } else if (recognizer == self.horizontalPanRecognizer) {
+  } else if (recognizer == self.panRecognizer) {
     // Pan
     if (![self.delegate conformsToProtocol:@protocol(LXMTableViewGestureEditingRowDelegate)]) {
       return NO;
     }
-    CGPoint translation = [self.horizontalPanRecognizer translationInView:self.tableView];
-    CGPoint location = [self.horizontalPanRecognizer locationInView:self.tableView];
+
+    CGPoint translation = [self.panRecognizer translationInView:self.tableView];
+    CGPoint location = [self.panRecognizer locationInView:self.tableView];
     NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:location];
     BOOL isSlidingHorizontally = fabs(translation.x) > fabs(translation.y);
     BOOL canEdit = [self.delegate gestureRecognizer:self canEditRowAtIndexPath:indexPath];
@@ -356,26 +442,19 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     if (!isSlidingHorizontally) {
       return NO;
     }
-    
-    return YES;
-    
-  } else if (recognizer == self.longPressRecognizer) {
-    // TODO: longPressRecognizer
-    NSInteger static counter = 0;
-    NSLog(@"%ld yes", counter++);
-    return YES;
-  } else {
-    return NO; 
-  }
-}
 
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRequireFailureOfGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
-  if (gestureRecognizer == self.horizontalPanRecognizer) {
-    if (otherGestureRecognizer == self.pinchRecognizer) {
+    if (![self gesturesIsAllowed:LXMTableViewGestureRecognizerOptionsHorizontalPan]) {
       return NO;
     }
+    
+    return YES;
+    
+  } else if (recognizer == self.longPressRecognizer && [self gesturesIsAllowed:LXMTableViewGestureRecognizerOptionsLongPress]) {
+    // TODO: longPressRecognizer
+    return YES;
+  } else {
+    return NO;
   }
-  return NO;
 }
 
 #pragma mark - Gesture Handlers
@@ -383,11 +462,10 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 - (void)handleTap:(UITapGestureRecognizer *)recognizer {
   
   if (recognizer.state == UIGestureRecognizerStateEnded) {
-    if (self.state == LXMTableViewGestureRecognizerStateNone) {
+    if ([LXMTableViewState sharedInstance].operationState == LXMTableViewOperationStateNormal) {
       CGPoint location = [recognizer locationInView:self.tableView];
       LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[self.tableView indexPathForRowAtPoint:location]];
       if (!cell.todoItem.isCompleted) {
-        NSLog(@"become ");
         [cell.strikeThroughText becomeFirstResponder];
       }
     } else {
@@ -407,12 +485,12 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
                      self.tableView.contentInset.left, 
                      self.tableView.contentInset.bottom + self.tableView.bounds.size.height, 
                      self.tableView.contentInset.right);
-    
-//    [UIView performWithoutAnimation:^{
-      [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:self.addingCellIndexPath];
-//      [self.tableView insertRowsAtIndexPaths:@[self.addingCellIndexPath] withRowAnimation:UITableViewRowAnimationNone];
-//    }];
+
+    [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:self.addingCellIndexPath];
   } else if (recognizer.state == UIGestureRecognizerStateChanged && recognizer.numberOfTouches >= 2) {
+
+    [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAdding;
+
     self.addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
     LXMPinchPoints currentPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:recognizer];
     
@@ -430,18 +508,20 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
       [self.tableView reloadRowsAtIndexPaths:@[self.addingCellIndexPath] withRowAnimation:UITableViewRowAnimationNone];
     }];
   } else if (recognizer.state == UIGestureRecognizerStateEnded || [recognizer numberOfTouches] < 2) {
-    self.state = LXMTableViewGestureRecognizerStateNoInteracting;
+    [self denyAllGestures];
     if (self.addingCellIndexPath) {
       [self commitOrDiscardCell];
     }
   } else {
-    self.state = LXMTableViewGestureRecognizerStateNone;
+//    self.state = LXMTableViewGestureRecognizerStateNone;
+    [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateNormal;
+    [self allowAllGestures];
     NSLog(@"Whoops... Something unexpected happened while pinching. ");
     // TODO: show a alert?
   }
 }
 
-- (void)handleHorizontalPan:(UIPanGestureRecognizer *)panRecognizer {
+- (void)handlePan:(UIPanGestureRecognizer *)panRecognizer {
   
   static LXMTableViewCellEditingState lastEditingState = LXMTableViewCellEditingStateNone;
   static NSIndexPath *panningIndexPath;
@@ -463,6 +543,8 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
           .editCommitTriggerWidth, 0.75f, 1.01f);
       offsetX = [self panOffsetXForParameters:deletionParameters];
     }
+
+    [LXMTableViewState sharedInstance].operationState = offsetX > 0 ? LXMTableViewOperationStateCompleting : LXMTableViewOperationStateDeleting;
     
     panningCell.actualContentView.frame = CGRectOffset(panningCell.contentView.bounds, offsetX, 0);
     [panningCell setNeedsLayout];
@@ -489,9 +571,11 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
                    didEnterEditingState:lastEditingState 
                    forRowAtIndexPath:panningIndexPath];
   } else if (panRecognizer.state == UIGestureRecognizerStateEnded) {
-    self.state = LXMTableViewGestureRecognizerStateNone;
+//    self.state = LXMTableViewGestureRecognizerStateNone;
+    [self allowAllGestures];
     if (lastEditingState == LXMTableViewCellEditingStateDeleting) {
-      self.state = LXMTableViewGestureRecognizerStateNoInteracting;
+//      self.state = LXMTableViewGestureRecognizerStateNoInteracting;
+      [self allowGesturesOnly:LXMTableViewGestureRecognizerOptionsVerticalPan | LXMTableViewGestureRecognizerOptionsTap];
     }
     panningCell.editingState = LXMTableViewCellEditingStateNone;
     [self.delegate gestureRecognizer:self 
@@ -508,6 +592,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   if (longPressRecognizer.state == UIGestureRecognizerStateBegan) {
     NSLog(@"Start moving.");
     self.state = LXMTableViewGestureRecognizerStateMoving;
+    [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateRearranging;
 
     // 获取拖动 cell 的位图快照。
     UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
@@ -561,17 +646,22 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
       snapshotView.frame = rect;
     } completion:^(BOOL finished) {
       [snapshotView removeFromSuperview];
-      
+
+      [UIView beginAnimations:nil context:nil];
+      [CATransaction begin];
+      [CATransaction setCompletionBlock:^{
+        [weakSelf.tableView reloadVisibleRowsExceptIndexPaths:@[indexPath]];
+        weakSelf.cellSnapshot = nil;
+        weakSelf.addingCellIndexPath = nil;
+        [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
+      }];
       [weakSelf.tableView beginUpdates];
       [weakSelf.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
       [weakSelf.tableView insertRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
       [weakSelf.delegate gestureRecognizer:self needsReplacePlaceholderForRowAtIndexPath:indexPath];
       [weakSelf.tableView endUpdates];
-      
-      [weakSelf.tableView reloadVisibleRowsExceptIndexPaths:@[indexPath]];
-      weakSelf.cellSnapshot = nil;
-      weakSelf.addingCellIndexPath = nil;
-      weakSelf.state = LXMTableViewGestureRecognizerStateNone;
+      [CATransaction commit];
+      [UIView commitAnimations];
     }];
   } else if (longPressRecognizer.state == UIGestureRecognizerStateChanged) {
     // 随手指移动 cell 快照，当移动到 table view 顶部或者底部时，滚动 table view。

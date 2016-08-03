@@ -14,21 +14,28 @@ extern CGFloat const LXMTableViewRowAnimationDurationNormal;
 extern CGFloat const LXMTableViewRowAnimationDurationShort;
 extern CGFloat const LXMTableViewRowAnimationDurationLong;
 
-typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
-  LXMTableViewGestureRecognizerStateNone,
-  LXMTableViewGestureRecognizerStatePinching,
-  LXMTableViewGestureRecognizerStatePanning,
-  LXMTableViewGestureRecognizerStateMoving,
-  LXMTableViewGestureRecognizerStateDragging,
-  LXMTableViewGestureRecognizerStateNoInteracting,
+typedef NS_OPTIONS(NSUInteger, LXMTableViewGestureRecognizerOptions) {
+  LXMTableViewGestureRecognizerOptionsTap           = 1 << 0,
+  LXMTableViewGestureRecognizerOptionsPinch         = 1 << 1,
+  LXMTableViewGestureRecognizerOptionsHorizontalPan = 1 << 2,
+  LXMTableViewGestureRecognizerOptionsVerticalPan   = 1 << 3,
+  LXMTableViewGestureRecognizerOptionsLongPress     = 1 << 4,
 };
 
 @interface LXMTableViewGestureRecognizer : NSObject <UITableViewDelegate>
 
-@property (nonatomic, assign) LXMTableViewGestureRecognizerState state;
 @property (nonatomic, weak, readonly) UITableView *tableView;
 
 + (instancetype)gestureRecognizerWithTableView:(UITableView *)tableView delegate:(id)delegate;
+
+- (void)allowAllGestures; ///< 允许识别所有手势。
+- (void)denyAllGestures; ///< 不允许识别任何手势。
+- (void)allowGesture:(LXMTableViewGestureRecognizerOptions)options; ///< 允许识别指定的手势，不会改变非指定的手势的识别状态。
+- (void)denyGestures:(LXMTableViewGestureRecognizerOptions)options; ///< 不允许识别指定的手势，不会改变非指定的手势的识别状态。
+- (void)allowGesturesOnly:(LXMTableViewGestureRecognizerOptions)options; ///< 仅允许识别指定的手势，不识别其余手势。
+- (void)denyGesturesOnly:(LXMTableViewGestureRecognizerOptions)options; ///< 不允许识别指定的手势，允许识别其余手势的识别状态。
+- (BOOL)gesturesIsAllowed:(LXMTableViewGestureRecognizerOptions)options; ///< 返回是否允许识别指定的手势。当参数有多个手势时，只有全部允许识别，才会返回 YES。
+
 
 @end
 

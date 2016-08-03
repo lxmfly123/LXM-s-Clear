@@ -16,6 +16,7 @@
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMStrikeThroughText.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewHelper.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewHelper.h" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewState.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMAnimationQueue.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewCell.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMAnimationQueue.h" isTestSource="false" />
@@ -26,11 +27,10 @@
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewGestureRecognizer.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/Base.lproj/LaunchScreen.storyboard" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/Base.lproj/Main.storyboard" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMGlobalSettings.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMGlobalSettings.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/Info.plist" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/ViewController.m" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTableViewState.m" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMGlobalSettings.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/LXMTodoItem.m" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/ViewController.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/LXM's Gesture Recoginizer/Assets.xcassets" isTestSource="false" />

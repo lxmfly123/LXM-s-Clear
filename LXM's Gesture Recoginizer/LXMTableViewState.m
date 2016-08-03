@@ -9,7 +9,7 @@
 #import "LXMTableViewState.h"
 #import "LXMGlobalSettings.h" 
 
-NSString *const LXMOperationCompleteNotification = @"OperationComplete";
+NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
 @interface LXMTableViewState ()
 

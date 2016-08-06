@@ -21,6 +21,7 @@
   if (self = [super init]) {
     self.animations = [[NSMutableArray alloc] initWithCapacity:5];
   }
+  
   return self;
 }
 
@@ -30,11 +31,11 @@
   
   va_list animations;
   va_start(animations, animation1);
-  [self addAnimations:animation1 withParameters:animations];
+  [self keepAddingAnimations:animations];
   va_end(animations);
 }
 
-- (void)addAnimations:(LXMAnimationBlock)animation1 withParameters:(va_list)animations {
+- (void)keepAddingAnimations:(va_list)animations {
 
   LXMAnimationBlock animation;
   while ((animation = va_arg(animations, LXMAnimationBlock))) {
@@ -50,14 +51,15 @@
       [self.animations removeObjectAtIndex:0];
       return block;
     } else {
-      if (self.queueCompletion) {
-        return self.queueCompletion;
-      } else {
-        return ^(BOOL finished) {
-          NSLog(@"finished");
-        };
-      }
+      return self.queueCompletion;
     }
+  };
+}
+
+- (LXMAnimationBlock)queueCompletion {
+
+  return ^(BOOL finished) {
+    NSLog(@"Queue finished. ");
   };
 }
 

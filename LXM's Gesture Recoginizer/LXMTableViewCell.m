@@ -116,11 +116,11 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
   [self.strikeThroughText setNeedsLayout];
 }
 
-- (void)prepareForReuse {
-
-  self.transform = CGAffineTransformIdentity;
-  self.isModifying = NO;
-}
+//- (void)prepareForReuse {
+//
+//  self.transform = CGAffineTransformIdentity;
+//  self.isModifying = NO;
+//}
 
 - (CGFloat)gestureHintWidth {
   return [LXMGlobalSettings sharedInstance].editCommitTriggerWidth;

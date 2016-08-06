@@ -6,6 +6,9 @@
 //  Copyright © 2016 FLY.lxm. All rights reserved.
 //
 
+#import <pop/POPAnimation.h>
+#import <pop/POPAnimatableProperty.h>
+#import <pop/POPBasicAnimation.h>
 #import "ViewController.h"
 #import "LXMGlobalSettings.h"
 #import "LXMAnimationQueue.h"
@@ -14,7 +17,7 @@
 #import "LXMTransformableTableViewCell.h"
 #import "LXMTableViewState.h"
 #import "LXMStrikeThroughText.h"
-#import "UIColor+LXMTableViewGestureRecognizerHelper.h"
+#import "UIColor+LXMTableViewGestureRecognizerHelper.h"#import "POPBasicAnimationInternal.h"
 
 static NSString * const kAddingCell = @"Continue";
 static NSString * const kDoneCell = @"Done";
@@ -28,10 +31,10 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 @property (nonatomic, strong) NSMutableArray<LXMTodoItem *> *todoItems;
 @property (nonatomic, assign) NSTimeInterval keyboardAnimationDuration;
 @property (nonatomic, assign) UIViewAnimationOptions keyboardAnimationCurveOption;
-/// 长按时要移动的项目。
-@property (nonatomic, strong) LXMTodoItem *grabbedTodoItem;
+@property (nonatomic, strong) LXMTodoItem *grabbedTodoItem; ///< 长按时要移动的项目。
 
-@property (nonatomic, strong) CADisplayLink *displayLink;
+// 动画相关属性
+@property (nonatomic, strong) LXMAnimationQueue *animationQueue;
 
 @end
 
@@ -69,6 +72,20 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   self.tableViewState.tableView = self.tableView;
   
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+
+//  POPAnimatableProperty *prop = [POPAnimatableProperty propertyWithName:@"test" initializer:^(POPMutableAnimatableProperty *prop) {
+//    prop.writeBlock = ^(id obj, const CGFloat values[]) {
+//      NSLog(@"%f", values[0]);
+//    };
+//  }];
+//
+//  POPBasicAnimation *animation = [POPBasicAnimation linearAnimation];
+//  animation.property = prop;
+//  animation.fromValue = @(0);
+//  animation.toValue = @(60);
+//  animation.duration = 0.25;
+//  animation.beginTime = CACurrentMediaTime();
+//  [self pop_addAnimation:animation forKey:@"key"];
 }
 
 - (void)keyboardWillShow:(NSNotification *)notification {
@@ -87,30 +104,36 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   // Dispose of any resources that can be recreated.
 }
 
+- (void)dealloc {
+
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 #pragma mark - CADisplayLink
 
-- (void)startAnimation{
-  //  self.displayLink.beginTime = CACurrentMediaTime();
-  if (!self.displayLink) {
-    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(test:)];
-  }
-  self.displayLink.paused = NO;
-  [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
-}
+//- (void)startAnimation{
+//  //  self.displayLink.beginTime = CACurrentMediaTime();
+//  if (!self.displayLink) {
+//    self.displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(test:)];
+//  }
+//  self.displayLink.paused = NO;
+//  [self.displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+//}
+//
+//- (void)stopAnimation{
+//  self.displayLink.paused = YES;
+//  [self.displayLink invalidate];
+//  self.displayLink = nil;
+//  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+//    obj.layer.transform = CATransform3DIdentity;
+//  }];
+//  [self.tableViewState recoverTableViewContentOffsetAndInset];
+//}
 
-- (void)stopAnimation{
-  self.displayLink.paused = YES;
-  [self.displayLink invalidate];
-  self.displayLink = nil;
-  [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-    obj.layer.transform = CATransform3DIdentity;
-  }];
-  [self.tableViewState recoverTableViewContentOffsetAndInset];
-}
-
+/*
 - (void)test:(CADisplayLink *)displayLink {
 
-  LXMPullDownTransformableTableViewCell *theCell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+  LXMFlippingTransformableTableViewCell *theCell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
 //  NSLog(@"%@", theCell);
   CALayer *presentationLayer = theCell.transformableView.layer.presentationLayer;
   
@@ -143,7 +166,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   NSLog(@"layer height: %f", presentationLayer.frame.size.height);
   NSLog(@"offset1: %f", theCell.frame.size.height - presentationLayer.frame.size.height);
   NSLog(@"offset2: %f", self.tableView.contentOffset.y + 120);*/
-}
+/*}*/
 
 #pragma mark - getters
 
@@ -156,6 +179,15 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
   return _keyboardAnimationCurveOption = _keyboardAnimationCurveOption == 0 ? 7 << 16 :
       _keyboardAnimationCurveOption;
+}
+
+- (LXMAnimationQueue *)animationQueue {
+
+  if (_animationQueue == nil) {
+    _animationQueue = [LXMAnimationQueue new];
+  }
+
+  return _animationQueue;
 }
 
 #pragma mark - methods
@@ -319,37 +351,103 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   return self.todoItems.count;
 }
 
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+- (__kindof UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
   
   LXMTodoItem *todoItem = self.todoItems[indexPath.row];
   UIColor *backgroundColor = [self colorForRowAtIndexPath:indexPath];
-  
-  if ([todoItem.text isEqualToString:kAddingCell]) {
+
+  if (todoItem.usage != LXMTodoItemUsageNormal) {
     NSString *reuseIdentifier;
-    LXMTransformableTableViewCell *cell;
-    if (indexPath.row == 0) {
-      reuseIdentifier = @"PullDownCell";
-      cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
-      if (!cell) {
-        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStylePullDown reuseIdentifier:reuseIdentifier];
-      }
-    } else {
-      reuseIdentifier = @"UnfoldingCell";
-      cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
-      
-      if (!cell) {
-        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStyleUnfolding reuseIdentifier:reuseIdentifier];
-      }
+    LXMTransformableTableViewCellStyle style;
+    NSString *processingText;
+    NSString *reachText;
+
+    switch (todoItem.usage) {
+      case LXMTodoItemUsagePinchAdded:
+        reuseIdentifier = @"UnfoldingCell";
+        style = LXMTransformableTableViewCellStyleUnfolding;
+        processingText = @"继续 pinch ";
+        reachText = @"可以松开了";
+        break;
+
+      case LXMTodoItemUsagePullAdded:
+        reuseIdentifier = @"PullDownCell";
+        style = LXMTransformableTableViewCellStylePullDown;
+        processingText = @"继续下拉";
+        reachText = @"可以松开了";
+        break;
+
+      case LXMTodoItemUsageTapAdded:
+        reuseIdentifier = @"PullDownCell";
+        style = LXMTransformableTableViewCellStylePushDown;
+        processingText = @"";
+        reachText = @"";
+        break;
+
+      case LXMTodoItemUsagePlaceholder:
+        reuseIdentifier = @"PlaceholderCell";
+        style = LXMTransformableTableViewCellStyleUnfolding;
+        processingText = @"";
+        reachText = @"";
+        break;
+    }
+
+    LXMTransformableTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+    if (!cell) {
+      cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:style reuseIdentifier:reuseIdentifier];
     }
     cell.tintColor = backgroundColor;
     cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
     if (cell.frame.size.height > cell.finishedHeight) {
-      cell.textLabel.text = @"Release to create cell";
+      cell.textLabel.text = reachText;
     } else {
-      cell.textLabel.text = @"Continue pinching";
+      cell.textLabel.text = processingText;
     }
+
     return cell;
-  } else {
+  }
+
+//  if (todoItem.usage == LXMTodoItemUsagePinchAdded) {
+//    NSString *reuseIdentifier = @"UnfoldingCell";
+//    LXMTransformableTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+//    if (!cell) {
+//      cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStyleUnfolding reuseIdentifier:reuseIdentifier];
+//    }
+//  } else if (todoItem.usage == LXMTodoItemUsagePullAdded) {
+//    NSString *reuseIdentifier = @"PullDownCell";
+//    LXMTransformableTableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+//    if (!cell) {
+//      cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStylePullDown reuseIdentifier:reuseIdentifier];
+//    }
+//  }
+//
+//  if ([todoItem.text isEqualToString:kAddingCell]) {
+//    NSString *reuseIdentifier;
+//    LXMTransformableTableViewCell *cell;
+//    if (indexPath.row == 0) {
+//      reuseIdentifier = @"PullDownCell";
+//      cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+//      if (!cell) {
+//        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStylePullDown reuseIdentifier:reuseIdentifier];
+//      }
+//    } else {
+//      reuseIdentifier = @"UnfoldingCell";
+//      cell = [tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
+//
+//      if (!cell) {
+//        cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:LXMTransformableTableViewCellStyleUnfolding reuseIdentifier:reuseIdentifier];
+//      }
+//    }
+//    cell.tintColor = backgroundColor;
+//    cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+//    if (cell.frame.size.height > cell.finishedHeight) {
+//      cell.textLabel.text = @"Release to create cell";
+//    } else {
+//      cell.textLabel.text = @"Continue pinching";
+//    }
+//    return cell;
+//  }
+  else {
     static NSString *reuseIdentifier = @"NormalCell";
     LXMTableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:reuseIdentifier];
     if (!cell) {
@@ -412,12 +510,73 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   }
 }
 
-- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath {
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath usage:(LXMTodoItemUsage)usage {
 
-  [UIView performWithoutAnimation:^{
-    [self.todoItems insertObject:[LXMTodoItem todoItemWithText:kAddingCell] atIndex:indexPath.row];
+  [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAdding;
+
+  void (^addBlock)() = ^ {
+    [self.todoItems insertObject:[LXMTodoItem todoItemWithUsage:usage] atIndex:indexPath.row];
     [self.tableView insertRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
-  }];
+  };
+
+  switch (usage) {
+    case LXMTodoItemUsagePinchAdded: {
+      [UIView performWithoutAnimation:^{
+        addBlock();
+      }];
+    }
+      break;
+
+    case LXMTodoItemUsageTapAdded: {
+      [UIView performWithoutAnimation:^{
+        addBlock();
+      }];
+
+      LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+      POPAnimatableProperty *prop = [POPAnimatableProperty propertyWithName:@"FlipProcess" initializer:^(POPMutableAnimatableProperty *prop) {
+        prop.writeBlock = ^(id obj, const CGFloat values[]) {
+          NSLog(@"*** add begins");
+          self.tableViewState.addingProgress = values[0];
+//          cell.frame = CGRectMake(cell.frame.origin.x,
+//              cell.frame.origin.y,
+//              cell.frame.size.width,
+//              self.tableViewState.assistView.frame.size.height);
+          self.tableViewRecognizer.addingRowHeight = self.tableViewState.assistView.frame.size.height;
+          [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
+          NSLog(@"%f", self.tableViewState.addingProgress);
+          NSLog(@"cell height: %f", cell.frame.size.height);
+          NSLog(@"assview height: %f", self.tableViewState.assistView.frame.size.height);
+          NSLog(@"*** add finish");
+        };
+      }];
+
+      POPBasicAnimation *animation = [POPBasicAnimation easeInAnimation];
+      animation.property = prop;
+      animation.fromValue = @(0);
+      animation.toValue = @(1);
+      animation.duration = LXMTableViewRowAnimationDurationNormal;
+      animation.beginTime = CACurrentMediaTime();
+      animation.completionBlock = ^(POPAnimation *animation, BOOL finished) {
+        self.tableViewState.addingProgress = 0;
+      };
+      [self.tableView pop_addAnimation:animation forKey:@"flip"];
+
+//      [UIView beginAnimations:nil context:nil];
+//      [CATransaction begin];
+//      [CATransaction setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+//      [CATransaction commit];
+//      [UIView commitAnimations];
+//      [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal delay:0 options:nil animations:^{
+//        cell.frame = CGRectOffset(cell.frame, 0, [LXMGlobalSettings sharedInstance].addingRowFinishedHeight);
+//      } completion:^(BOOL finished) {
+//        [self gestureRecognizer:self.tableViewRecognizer needsCommitRowAtIndexPath:indexPath];
+//      }];
+    }
+      break;
+
+    default:
+      break;
+  }
 }
 
 //- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer isAddingRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -434,17 +593,55 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 //  }];
 //}
 
-- (void)resetCellAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
+- (void)recoverRowAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
 
+  LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+
+  CGFloat currentRowHeight = cell.frame.size.height;
+  CGFloat finishedRowHeight = shouldAdd ? [LXMGlobalSettings sharedInstance].addingRowFinishedHeight : 0;
+
+  LXMAnimationBlock block = ^(BOOL finished) {
+    if (indexPath.row > 0) {
+      [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
+        cell.frame =
+            CGRectMake(cell.frame.origin.x,
+                cell.frame.origin.y,
+                cell.frame.size.width,
+                finishedRowHeight);
+
+        [self.tableViewState recoverTableViewContentOffsetAndInset];
+
+        for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
+          if ([self.tableView indexPathForCell:visibleCell].row > indexPath.row) {
+            if (shouldAdd) {
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, self.tableView.rowHeight - currentRowHeight);
+            } else {
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -currentRowHeight);
+            }
+          }
+        }
+      } completion:^(BOOL finished) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
+        [self.tableView reloadData];
+        self.animationQueue.blockCompletion()(YES);
+      }];
+    } else {
+      // for pulldown added row
+    }
+  };
+}
+
+- (void)resetCellAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
+/*
   [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAnimating;
 
   LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
-  CGFloat cellFinishedHeight;
-  CGFloat cellHeight = cell.frame.size.height;
+  CGFloat finishedRowHeight;
+  CGFloat currentRowHeight = cell.frame.size.height;
   if (shouldAdd) {
-    cellFinishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+    finishedRowHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
   } else {
-    cellFinishedHeight = 0;
+    finishedRowHeight = 0;
   }
 
   LXMAnimationQueue *animationQueue = [LXMAnimationQueue new];
@@ -474,9 +671,9 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
           CGRectMake(cell.frame.origin.x,
                      cell.frame.origin.y,
                      cell.frame.size.width,
-                     cellFinishedHeight);
+                     finishedRowHeight);
         } else {
-          ((LXMPullDownTransformableTableViewCell *)cell).transformableView.layer.transform = transform;
+          ((LXMFlippingTransformableTableViewCell *)cell).transformableView.layer.transform = transform;
         }
       } completion:^(BOOL finished) {
         if (!shouldAdd) {
@@ -494,16 +691,16 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
           CGRectMake(cell.frame.origin.x,
                      cell.frame.origin.y,
                      cell.frame.size.width,
-                     cellFinishedHeight);
+                     finishedRowHeight);
 
         [self.tableViewState recoverTableViewContentOffsetAndInset];
 
         for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
           if ([self.tableView indexPathForCell:visibleCell].row > indexPath.row) {
             if (shouldAdd) {
-              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, self.tableView.rowHeight - cellHeight);
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, self.tableView.rowHeight - currentRowHeight);
             } else {
-              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -cellHeight);
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -currentRowHeight);
             }
           }
         }
@@ -530,7 +727,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   };
 
   [animationQueue addAnimations:resetTableView, assignFirstResponder, nil];
-  [animationQueue play];
+  [animationQueue play];*/
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCommitRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -673,8 +870,8 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
   cell.isModifying = YES;
 
+  self.tableViewState.modifyingRowIndexPath = [self.tableView indexPathForCell:cell];
   [self.tableViewState saveTableViewLastContentOffsetAndInset];
-//  self.tableViewRecognizer.state = LXMTableViewGestureRecognizerStateNoInteracting;
   self.tableViewState.operationState = LXMTableViewOperationStateModifying;
   [self.tableViewRecognizer allowGesturesOnly:LXMTableViewGestureRecognizerOptionsTap | LXMTableViewGestureRecognizerOptionsVerticalPan];
 
@@ -717,6 +914,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     self.tableView.scrollEnabled = YES;
     self.tableView.bounces = YES;
     cell.isModifying = NO;
+    self.tableViewState.modifyingRowIndexPath = nil;
 
     if ([cell.strikeThroughText.text isEqualToString:@""]) {
       [self deleteRowAtIndexPath:[self.tableView indexPathForCell:cell]];

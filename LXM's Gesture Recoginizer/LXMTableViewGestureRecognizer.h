@@ -28,6 +28,8 @@ typedef NS_OPTIONS(NSUInteger, LXMTableViewGestureRecognizerOptions) {
 
 + (instancetype)gestureRecognizerWithTableView:(UITableView *)tableView delegate:(id)delegate;
 
+@property (nonatomic, assign) CGFloat addingRowHeight;
+
 - (void)allowAllGestures; ///< 允许识别所有手势。
 - (void)denyAllGestures; ///< 不允许识别任何手势。
 - (void)allowGesture:(LXMTableViewGestureRecognizerOptions)options; ///< 允许识别指定的手势，不会改变非指定的手势的识别状态。
@@ -42,7 +44,7 @@ typedef NS_OPTIONS(NSUInteger, LXMTableViewGestureRecognizerOptions) {
 @protocol LXMTableViewGestureAddingRowDelegate <NSObject>
 
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canAddCellAtIndexPath:(NSIndexPath *)indexPath;
-- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath;
+- (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsAddRowAtIndexPath:(NSIndexPath *)indexPath usage:(LXMTodoItemUsage)usage;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCommitRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsDiscardRowAtIndexPath:(NSIndexPath *)indexPath;
 

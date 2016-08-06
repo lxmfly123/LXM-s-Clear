@@ -33,7 +33,7 @@
 
 
 // behavior conditions
-@property (nonatomic, assign, readwrite) CGFloat addingM34;
+@property (nonatomic, assign, readwrite) CATransform3D addingTransform3D;
 //@property (nonatomic, assign) CGFloat panCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownTransformViewDistance;
@@ -66,8 +66,9 @@
     self.shouldSeparateRow = YES;
 
     // behavior & conditions
-    self.addingM34 = -1 / 500.0f;
-    
+    CATransform3D transform = CATransform3DIdentity;
+    transform.m34 = -1 / 500.0f;
+    self.addingTransform3D = transform;
   }
   return self;
 }

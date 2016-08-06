@@ -25,7 +25,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "679"
             endingLineNumber = "679"
-            landmarkName = "-tableViewCellDidBeginTextEditing:"
+            landmarkName = "-gestureRecognizer:didEnterEditingState:forRowAtIndexPath:"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>
@@ -41,7 +41,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "715"
             endingLineNumber = "715"
-            landmarkName = "-tableViewCellDidEndTextEditing:"
+            landmarkName = "-gestureRecognizer:needsCreatePlaceholderForRowAtIndexPath:"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>
@@ -57,7 +57,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "692"
             endingLineNumber = "692"
-            landmarkName = "-tableViewCellDidBeginTextEditing:"
+            landmarkName = "-gestureRecognizer:didCommitEditingState:forRowAtIndexPath:"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>

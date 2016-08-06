@@ -38,8 +38,7 @@ typedef void (^LXMAnimationBlock)(BOOL);
 
 // behavior conditions
 
-/// 新增行时 3D 透视转换矩阵的 m34 值，默认 -1/500。
-@property (nonatomic, assign, readonly) CGFloat addingM34;
+@property (nonatomic, assign, readonly) CATransform3D addingTransform3D; /// 新增 todo 时的 3D 透视转换矩阵，m34 默认 -1/500.0f。
 //@property (nonatomic, assign) CGFloat panCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownTransformViewDistance;

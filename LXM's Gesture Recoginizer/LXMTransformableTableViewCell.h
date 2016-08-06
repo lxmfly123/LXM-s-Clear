@@ -10,8 +10,9 @@
 #import <Foundation/Foundation.h>
 
 typedef NS_ENUM(NSUInteger, LXMTransformableTableViewCellStyle) {
-  LXMTransformableTableViewCellStyleUnfolding,
-  LXMTransformableTableViewCellStylePullDown,
+  LXMTransformableTableViewCellStyleUnfolding, ///< UnfoldingCell
+  LXMTransformableTableViewCellStylePullDown, ///< FlippingCell
+  LXMTransformableTableViewCellStylePushDown, ///< FlippingCell
 };
 
 @protocol LXMTransformableTableViewCell <NSObject>
@@ -34,7 +35,7 @@ typedef NS_ENUM(NSUInteger, LXMTransformableTableViewCellStyle) {
 
 @end
 
-@interface LXMPullDownTransformableTableViewCell : LXMTransformableTableViewCell <LXMTransformableTableViewCell>
+@interface LXMFlippingTransformableTableViewCell : LXMTransformableTableViewCell <LXMTransformableTableViewCell>
 
 @property (nonatomic, strong) UIView *transformableView;
 @property (nonatomic, assign) CGFloat fraction;

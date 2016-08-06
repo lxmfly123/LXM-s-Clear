@@ -17,9 +17,7 @@
   
   self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
   if (self) {
-    CATransform3D transform = CATransform3DIdentity;
-    transform.m34 = [LXMGlobalSettings sharedInstance].addingM34;
-    self.contentView.layer.sublayerTransform = transform;
+    self.contentView.layer.sublayerTransform = [LXMGlobalSettings sharedInstance].addingTransform3D;
     
     self.transformable1HalfView = [[UIView alloc] initWithFrame:self.bounds];
     self.transformable1HalfView.layer.anchorPoint = CGPointMake(0.5, 0);
@@ -39,13 +37,12 @@
     self.textLabel.backgroundColor = [UIColor clearColor];
     self.textLabel.adjustsFontSizeToFitWidth = YES;
     self.textLabel.textColor = [UIColor whiteColor];
-    self.textLabel.shadowOffset = CGSizeMake(0, 1);
-    self.textLabel.shadowColor = [UIColor colorWithRed:0 green:0 blue:0 alpha:0.6];
     
     self.detailTextLabel.backgroundColor = [UIColor clearColor];
     
     self.selectionStyle = UITableViewCellSelectionStyleNone;
   }
+  
   return self;
 }
 
@@ -76,8 +73,8 @@
     self.detailTextLabel.font = self.textLabel.font;
     self.detailTextLabel.textColor = self.textLabel.textColor;
     self.detailTextLabel.textAlignment = self.textLabel.textAlignment;
-    self.detailTextLabel.shadowColor = self.textLabel.shadowColor;
-    self.detailTextLabel.shadowOffset = self.textLabel.shadowOffset;
+//    self.detailTextLabel.shadowColor = self.textLabel.shadowColor;
+//    self.detailTextLabel.shadowOffset = self.textLabel.shadowOffset;
   }
   
   self.textLabel.frame = CGRectMake([LXMGlobalSettings sharedInstance].textFieldLeftMargin + [LXMGlobalSettings sharedInstance].textFieldLeftPadding, 
@@ -106,39 +103,47 @@
 
 @end
 
-@implementation LXMPullDownTransformableTableViewCell
+@implementation LXMFlippingTransformableTableViewCell
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
-  
+
+  return [self initWithStyle:style anchorPoint:(CGPoint){0.5, 1.0} reuseIdentifier:reuseIdentifier];
+}
+
+- (instancetype)initWithAnchorPoint:(CGPoint)anchorPoint reuseIdentifier:(NSString *)reuseIdentifier {
+
+  return [self initWithStyle:UITableViewCellStyleDefault anchorPoint:anchorPoint reuseIdentifier:reuseIdentifier];
+}
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style anchorPoint:(CGPoint)anchorPoint reuseIdentifier:(NSString *)reuseIdentifier {
+
   if (self = [super initWithStyle:style reuseIdentifier:reuseIdentifier]) {
+    self.contentView.layer.sublayerTransform = [LXMGlobalSettings sharedInstance].addingTransform3D;
     self.transformableView = [[UIView alloc] initWithFrame:self.bounds];
-    self.transformableView.layer.anchorPoint = CGPointMake(0.5, 1.0);
+    self.transformableView.layer.anchorPoint = anchorPoint;
     self.transformableView.clipsToBounds = YES;
     [self.contentView addSubview:self.transformableView];
-    
+
 //    UIView *testView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, 10)];
 //    testView.tag = 1000;
 //    testView.backgroundColor = [UIColor whiteColor];
 //    [self.contentView addSubview:testView];
-    
+
     // 非常重要：self.bakcgroundColor 不能为透明，否则在动画过程中会row之间有大概率会产生细黑条
     self.backgroundColor = [UIColor blackColor];
     self.tintColor = [UIColor whiteColor];
-    
+
     self.textLabel.backgroundColor = [UIColor clearColor];
     self.textLabel.adjustsFontSizeToFitWidth = YES;
     self.textLabel.textColor = [UIColor whiteColor];
-    
+
     self.selectionStyle = UITableViewCellSelectionStyleNone;
   }
+
   return self;
 }
 
-- (void)prepareForReuse {
-  
-  [super prepareForReuse];
-}
-
+/*
 - (void)layoutSubviews {
   
   [super layoutSubviews];
@@ -167,13 +172,38 @@
                                    0, 
                                    contentViewSize.width - 20.0f,
                                    self.finishedHeight);
+}*/
+
+- (void)layoutSubviews {
+
+  [super layoutSubviews];
+
+  self.fraction = [LXMTableViewState sharedInstance].addingProgress;
+  CGSize contentViewSize = self.contentView.frame.size;
+  CGFloat labelHeight = self.finishedHeight;
+  CGFloat angle = acosf(self.fraction);
+  self.transformableView.backgroundColor = [self.tintColor colorWithBrightnessComponent:0.5f + 0.5f * self.fraction];
+
+  if (self.transformableView.layer.anchorPoint.y < 0.5f) {
+    self.transformableView.frame = CGRectMake(0, 0, self.frame.size.width, labelHeight);
+  } else {
+    self.transformableView.frame = CGRectMake(0, self.transformableView.frame.size.height - labelHeight, self.frame.size.width, labelHeight);
+  }
+  self.transformableView.layer.transform = CATransform3DMakeRotation(angle, -1, 0, 0);
+  NSLog(@"  *** layout begins");
+  NSLog(@"  transview height: %f", self.transformableView.frame.size.height);
+  NSLog(@"  assview 2 height: %f", [LXMTableViewState sharedInstance].assistView.frame.size.height);
+  NSLog(@"  proccess: %f", self.fraction);
+  NSLog(@"  *** layout finished");
 }
 
 - (UILabel *)textLabel {
+
   UILabel *label = [super textLabel];
   if ([label superview] != self.transformableView) {
     [self.transformableView addSubview:label];
   }
+
   return label;
 }
 
@@ -194,8 +224,11 @@
       break;
 
     case LXMTransformableTableViewCellStylePullDown:
-      cell = [[LXMPullDownTransformableTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault
-                                                          reuseIdentifier:reuseIdentifier];
+      cell = [[LXMFlippingTransformableTableViewCell alloc] initWithAnchorPoint:(CGPoint){0.5, 1.0} reuseIdentifier:reuseIdentifier];
+          break;
+
+    case LXMTransformableTableViewCellStylePushDown:
+      cell = [[LXMFlippingTransformableTableViewCell alloc] initWithAnchorPoint:(CGPoint){0.5, 0.0} reuseIdentifier:reuseIdentifier];
       break;
   }
 

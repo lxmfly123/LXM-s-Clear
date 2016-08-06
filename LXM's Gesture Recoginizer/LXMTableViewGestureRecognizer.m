@@ -57,9 +57,9 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 @property (nonatomic, assign) LXMTableViewGestureRecognizerOptions options;
 
 @property (nonatomic, strong) NSIndexPath *addingCellIndexPath;
-@property (nonatomic, assign) CGFloat addingRowHeight;
+//@property (nonatomic, assign) CGFloat addingRowHeight;
 @property (nonatomic, assign) LXMTableViewCellEditingState addingRowState;
-@property (nonatomic, weak) LXMPullDownTransformableTableViewCell *addingCell;
+@property (nonatomic, weak) LXMFlippingTransformableTableViewCell *addingCell;
 
 @property (nonatomic, strong) UITapGestureRecognizer *tapRecognizer;
 @property (nonatomic, strong) UIPinchGestureRecognizer *pinchRecognizer;
@@ -462,11 +462,23 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 - (void)handleTap:(UITapGestureRecognizer *)recognizer {
   
   if (recognizer.state == UIGestureRecognizerStateEnded) {
+
+    CGPoint location = [recognizer locationInView:self.tableView];
+    NSIndexPath *indexPath = [self.tableView indexPathForRowAtPoint:location];
+    LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+
     if ([LXMTableViewState sharedInstance].operationState == LXMTableViewOperationStateNormal) {
-      CGPoint location = [recognizer locationInView:self.tableView];
-      LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:[self.tableView indexPathForRowAtPoint:location]];
       if (!cell.todoItem.isCompleted) {
         [cell.strikeThroughText becomeFirstResponder];
+      }
+    } else if ([LXMTableViewState sharedInstance].operationState == LXMTableViewOperationStateModifying) {
+      NSIndexPath *modifyingIndexPath = [LXMTableViewState sharedInstance].modifyingRowIndexPath;
+
+      if (!cell.todoItem.isCompleted) {
+        self.addingCellIndexPath = [NSIndexPath indexPathForRow:modifyingIndexPath.row + 1 inSection:0];
+        self.addingRowHeight = 0;
+        [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:self.addingCellIndexPath usage:LXMTodoItemUsageTapAdded];
+        [self denyAllGestures];
       }
     } else {
       [self.tableView endEditing:YES];
@@ -486,10 +498,8 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
                      self.tableView.contentInset.bottom + self.tableView.bounds.size.height, 
                      self.tableView.contentInset.right);
 
-    [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:self.addingCellIndexPath];
+    [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:self.addingCellIndexPath usage:LXMTodoItemUsagePinchAdded];
   } else if (recognizer.state == UIGestureRecognizerStateChanged && recognizer.numberOfTouches >= 2) {
-
-    [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAdding;
 
     self.addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
     LXMPinchPoints currentPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:recognizer];
@@ -795,12 +805,12 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   CGFloat rowHeight;
 
   if (self.addingCellIndexPath && [indexPath isEqual:self.addingCellIndexPath]) {
-    if (self.state == LXMTableViewGestureRecognizerStatePinching ||
-        self.state == LXMTableViewGestureRecognizerStateDragging) {
+//    if (self.state == LXMTableViewGestureRecognizerStatePinching ||
+//        self.state == LXMTableViewGestureRecognizerStateDragging) {
       rowHeight = MAX(0, self.addingRowHeight);
-    } else {
-      rowHeight = self.tableView.rowHeight;
-    }
+//    } else {
+//      rowHeight = self.tableView.rowHeight;
+//    }
   } else {
     rowHeight = [self.tableViewDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)] ? [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath] : self.tableView.rowHeight;
   }

@@ -192,9 +192,9 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
   CGSize contentViewSize = self.contentView.frame.size;
   CGFloat labelHeight = self.finishedHeight;
 
-  CGFloat angle = LXMTransformRotationFromHeights(self.frame.size.height, labelHeight, 500);
+  CGFloat angle = LXMTransformRotationFromHeights(self.frame.size.height, labelHeight, ABS(1.0 / self.contentView.layer.sublayerTransform.m34));
 
-  self.transformableView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * [LXMTableViewState sharedInstance].addingProgress];
+  self.transformableView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * (contentViewSize.height / self.finishedHeight)];
   self.transformableView.frame = self.transformableView.layer.anchorPoint.y < 0.5f ?
                                  CGRectMake(0, 0, contentViewSize.width, labelHeight) :
                                  CGRectMake(0, self.transformableView.frame.size.height - labelHeight, contentViewSize.width, labelHeight);

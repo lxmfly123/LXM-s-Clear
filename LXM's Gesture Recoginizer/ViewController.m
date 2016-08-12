@@ -524,7 +524,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     case LXMTodoItemUsageTapAdded: {
       // 用动画插入行。
       [UIView beginAnimations:nil context:nil];
-      [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+      [UIView setAnimationDuration:4];
       [CATransaction begin];
       [CATransaction setCompletionBlock:^{
         [self p_handleNewRowAtIndexPath:indexPath forAdding:YES];
@@ -539,9 +539,9 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
       // 定义 pop 属性动画，随 table view update 动画刷新新插入行的 layout 至完成。
       POPBasicAnimation *refreshCell = [POPBasicAnimation animationWithPropertyNamed:kPOPViewFrame];
-      refreshCell.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionDefault];
+      refreshCell.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
       refreshCell.name = @"Refresh_Tranforming_Cell_With_Table_View_Updating";
-      refreshCell.duration = LXMTableViewRowAnimationDurationNormal;
+      refreshCell.duration = 4;
       refreshCell.fromValue = [NSValue valueWithCGRect:CGRectMake(transformingCell.frame.origin.x, transformingCell.frame.origin.y, transformingCell.frame.size.width, 0)];
       refreshCell.toValue = [NSValue valueWithCGRect:
                              CGRectMake(transformingCell.frame.origin.x,

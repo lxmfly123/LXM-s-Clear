@@ -24,7 +24,7 @@
 
 // size & constraints
 @property (nonatomic, assign, readwrite) CGFloat normalRowHeight;
-@property (nonatomic, assign, readwrite) CGFloat addingRowFinishedHeight;
+@property (nonatomic, assign, readwrite) CGFloat modifyingRowHeight;
 @property (nonatomic, assign, readwrite) CGFloat textFieldLeftPadding;
 @property (nonatomic, assign, readwrite) CGFloat textFieldLeftMargin;
 @property (nonatomic, assign, readwrite) CGFloat textFieldRightMargin;
@@ -33,7 +33,7 @@
 
 
 // behavior conditions
-@property (nonatomic, assign, readwrite) CATransform3D addingTransform3D;
+@property (nonatomic, assign, readwrite) CATransform3D addingTransform3DIdentity;
 //@property (nonatomic, assign) CGFloat panCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownTransformViewDistance;
@@ -48,10 +48,10 @@
     // color
     UIColor *baseColor = [UIColor colorWithHue:0.4 saturation:0.7 brightness:0.7 alpha:1];
     self.listBaseColor = baseColor;
-    self.itemBaseColor = [baseColor colorWithBrightnessOffset:0.1];
+    self.itemBaseColor = [baseColor lxm_colorWithBrightnessOffset:0.1];
     CGFloat baseHue;
     [baseColor getHue:&baseHue saturation:nil brightness:nil alpha:nil];
-    self.editingCompletedColor = [baseColor colorWithHueOffset:baseHue - (1 - baseHue)];
+    self.editingCompletedColor = [baseColor lxm_colorWithHueOffset:baseHue - (1 - baseHue)];
     self.colorHueOffset = 0.06f;
     
     // fonts
@@ -62,13 +62,13 @@
     self.textFieldRightMargin = 16.0f;
     
     self.normalRowHeight = 60.0f;
-    self.addingRowFinishedHeight = 60.0f;
+    self.modifyingRowHeight = 60.0f;
     self.shouldSeparateRow = YES;
 
     // behavior & conditions
-    CATransform3D transform = CATransform3DIdentity;
-    transform.m34 = -1 / 500.0f;
-    self.addingTransform3D = transform;
+    CATransform3D identity = CATransform3DIdentity;
+    identity.m34 = -1 / 500.0f;
+    self.addingTransform3DIdentity = identity;
   }
   return self;
 }

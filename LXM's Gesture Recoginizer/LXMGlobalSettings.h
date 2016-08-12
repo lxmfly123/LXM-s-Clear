@@ -28,7 +28,7 @@ typedef void (^LXMAnimationBlock)(BOOL);
 
 // size & constraints
 @property (nonatomic, assign, readonly) CGFloat normalRowHeight;
-@property (nonatomic, assign, readonly) CGFloat addingRowFinishedHeight;
+@property (nonatomic, assign, readonly) CGFloat modifyingRowHeight;
 @property (nonatomic, assign, readonly) CGFloat textFieldLeftPadding;
 @property (nonatomic, assign, readonly) CGFloat textFieldLeftMargin;
 @property (nonatomic, assign, readonly) CGFloat textFieldRightMargin;
@@ -38,7 +38,8 @@ typedef void (^LXMAnimationBlock)(BOOL);
 
 // behavior conditions
 
-@property (nonatomic, assign, readonly) CATransform3D addingTransform3D; /// 新增 todo 时的 3D 透视转换矩阵，m34 默认 -1/500.0f。
+@property (nonatomic, assign, readonly) CATransform3D addingTransform3DIdentity; ///< 新增 todo 时的 3D 透视转换矩阵，m34 默认 -1/500.0f。
+@property (nonatomic, strong, readonly) NSDictionary *usageAndClass;
 //@property (nonatomic, assign) CGFloat panCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownCommitCellDistance;
 //@property (nonatomic, assign) CGFloat pullDownTransformViewDistance;

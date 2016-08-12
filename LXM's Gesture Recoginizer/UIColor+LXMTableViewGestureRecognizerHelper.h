@@ -10,10 +10,10 @@
 
 @interface UIColor (LXMTableViewGestureRecognizerHelper)
 
-+ (instancetype)colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage;
++ (instancetype)lxm_colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage;
 
-- (instancetype)colorWithBrightnessComponent:(CGFloat)brightnessComponent;
-- (instancetype)colorWithBrightnessOffset:(CGFloat)brightnessOffset;
-- (UIColor *)colorWithHueOffset:(CGFloat)hueOffset;
+- (instancetype)lxm_colorWithBrightnessComponent:(CGFloat)brightnessComponent;
+- (instancetype)lxm_colorWithBrightnessOffset:(CGFloat)brightnessOffset;
+- (UIColor *)lxm_colorWithHueOffset:(CGFloat)hueOffset;
 
 @end

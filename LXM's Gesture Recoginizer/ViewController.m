@@ -6,29 +6,29 @@
 //  Copyright © 2016 FLY.lxm. All rights reserved.
 //
 
-#import <pop/POPAnimation.h>
-#import <pop/POPAnimatableProperty.h>
-#import <pop/POPBasicAnimation.h>
 #import "ViewController.h"
 #import "LXMGlobalSettings.h"
 #import "LXMAnimationQueue.h"
 #import "LXMTableViewCell.h"
 #import "LXMTableViewGestureRecognizer.h"
 #import "LXMTransformableTableViewCell.h"
+#import "LXMTodoList.h"
+#import <pop/POP.h>
 #import "LXMTableViewState.h"
 #import "LXMStrikeThroughText.h"
-#import "UIColor+LXMTableViewGestureRecognizerHelper.h"#import "POPBasicAnimationInternal.h"
+#import "UIColor+LXMTableViewGestureRecognizerHelper.h"#import "POPBasicAnimationInternal.h"#import "POPAnimationInternal.h"
 
 static NSString * const kAddingCell = @"Continue";
 static NSString * const kDoneCell = @"Done";
 static NSString * const kDummyCell = @"Dummy";
 static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
-@interface ViewController () <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate, LXMTableViewCellDelegate>
+@interface ViewController () <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate, LXMTableViewCellDelegate, POPAnimationDelegate>
 
 @property (nonatomic, strong) LXMTableViewGestureRecognizer *tableViewRecognizer;
 @property (nonatomic, weak) LXMTableViewState *tableViewState;
-@property (nonatomic, strong) NSMutableArray<LXMTodoItem *> *todoItems;
+@property (nonatomic, strong) LXMTodoList *todoList;
+//@property (nonatomic, strong) NSMutableArray<LXMTodoItem *> *todoItems;
 @property (nonatomic, assign) NSTimeInterval keyboardAnimationDuration;
 @property (nonatomic, assign) UIViewAnimationOptions keyboardAnimationCurveOption;
 @property (nonatomic, strong) LXMTodoItem *grabbedTodoItem; ///< 长按时要移动的项目。
@@ -46,7 +46,8 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   
   [super viewDidLoad];
   
-  self.todoItems = [[NSMutableArray alloc] initWithCapacity:10];
+  self.todoList.todoItems = [[NSMutableArray alloc] initWithCapacity:10];
+  self.todoList = [LXMTodoList new];
   NSArray *array = @[@"右划完成", 
                     @"左划删除", 
                     @"Pinch 新建", 
@@ -60,8 +61,8 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
                     @"长按移动6",
                     @"长按移动7",
                     @"长按移动8"];
-  [array enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-    [self.todoItems addObject:[LXMTodoItem todoItemWithText:obj]];
+  [array enumerateObjectsUsingBlock:^(LXMTodoItem * _Nonnull todoText, NSUInteger idx, BOOL * _Nonnull stop) {
+    [self.todoList.todoItems addObject:[LXMTodoItem todoItemWithText:todoText]];
   }];
   
   self.tableView.backgroundColor = [UIColor blackColor];
@@ -70,22 +71,9 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   
   self.tableViewState = [LXMTableViewState sharedInstance];
   self.tableViewState.tableView = self.tableView;
+  self.tableViewState.todoList = self.todoList;
   
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
-
-//  POPAnimatableProperty *prop = [POPAnimatableProperty propertyWithName:@"test" initializer:^(POPMutableAnimatableProperty *prop) {
-//    prop.writeBlock = ^(id obj, const CGFloat values[]) {
-//      NSLog(@"%f", values[0]);
-//    };
-//  }];
-//
-//  POPBasicAnimation *animation = [POPBasicAnimation linearAnimation];
-//  animation.property = prop;
-//  animation.fromValue = @(0);
-//  animation.toValue = @(60);
-//  animation.duration = 0.25;
-//  animation.beginTime = CACurrentMediaTime();
-//  [self pop_addAnimation:animation forKey:@"key"];
 }
 
 - (void)keyboardWillShow:(NSNotification *)notification {
@@ -96,7 +84,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 - (void)viewWillAppear:(BOOL)animated {
   
-  self.tableViewRecognizer = [self.tableView enableGestureTableViewWithDelegate:self];
+  self.tableViewRecognizer = [self.tableView lxm_enableGestureTableViewWithDelegate:self];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -232,7 +220,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 - (NSIndexPath *)movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath {
   
   NSUInteger __block index = 0;
-  [self.todoItems enumerateObjectsUsingBlock:^(LXMTodoItem * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+  [self.todoList.todoItems enumerateObjectsUsingBlock:^(LXMTodoItem * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
     if (!obj.isCompleted && (idx != indexPath.row)) {
       ++index;
     }
@@ -281,21 +269,21 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
     [CATransaction begin];
     [CATransaction setCompletionBlock:^{
-      LXMTodoItem *tempItem = self.todoItems[tempTargetIndexPath.row];
-      [self.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
-      [self.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+      LXMTodoItem *tempItem = self.todoList.todoItems[tempTargetIndexPath.row];
+      [self.todoList.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
+      [self.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
       completionBlock();
     }];
-    LXMTodoItem *tempItem = self.todoItems[indexPath.row];
-    [self.todoItems removeObjectAtIndex:indexPath.row];
-    [self.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
+    LXMTodoItem *tempItem = self.todoList.todoItems[indexPath.row];
+    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
+    [self.todoList.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
     [self.tableView moveRowAtIndexPath:indexPath toIndexPath:tempTargetIndexPath];
     [CATransaction commit];
     [UIView commitAnimations];
   } else {
-    LXMTodoItem *tempItem = self.todoItems[indexPath.row];
-    [self.todoItems removeObjectAtIndex:indexPath.row];
-    [self.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+    LXMTodoItem *tempItem = self.todoList.todoItems[indexPath.row];
+    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
+    [self.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
     [UIView beginAnimations:nil context:nil];
     [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
     [CATransaction begin];
@@ -327,7 +315,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
       [self.tableView reloadData];
       animationQueue.blockCompletion()(YES);
     }];
-    [self.todoItems removeObjectAtIndex:indexPath.row];
+    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
     [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationTop];
     [CATransaction commit];
     [UIView commitAnimations];
@@ -348,47 +336,47 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-  return self.todoItems.count;
+  return self.todoList.todoItems.count;
 }
 
-- (__kindof UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
   
-  LXMTodoItem *todoItem = self.todoItems[indexPath.row];
+  LXMTodoItem *todoItem = self.todoList.todoItems[indexPath.row];
   UIColor *backgroundColor = [self colorForRowAtIndexPath:indexPath];
 
   if (todoItem.usage != LXMTodoItemUsageNormal) {
     NSString *reuseIdentifier;
     LXMTransformableTableViewCellStyle style;
     NSString *processingText;
-    NSString *reachText;
+    NSString *committingText;
 
     switch (todoItem.usage) {
       case LXMTodoItemUsagePinchAdded:
         reuseIdentifier = @"UnfoldingCell";
         style = LXMTransformableTableViewCellStyleUnfolding;
         processingText = @"继续 pinch ";
-        reachText = @"可以松开了";
+        committingText = @"可以松开了";
         break;
 
       case LXMTodoItemUsagePullAdded:
         reuseIdentifier = @"PullDownCell";
         style = LXMTransformableTableViewCellStylePullDown;
         processingText = @"继续下拉";
-        reachText = @"可以松开了";
+        committingText = @"可以松开了";
         break;
 
       case LXMTodoItemUsageTapAdded:
-        reuseIdentifier = @"PullDownCell";
+        reuseIdentifier = @"PushDownCell";
         style = LXMTransformableTableViewCellStylePushDown;
-        processingText = @"";
-        reachText = @"";
+        processingText = @"lalala";
+        committingText = @"ok";
         break;
 
       case LXMTodoItemUsagePlaceholder:
         reuseIdentifier = @"PlaceholderCell";
         style = LXMTransformableTableViewCellStyleUnfolding;
         processingText = @"";
-        reachText = @"";
+        committingText = @"";
         break;
     }
 
@@ -397,13 +385,15 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
       cell = [LXMTransformableTableViewCell transformableTableViewCellWithStyle:style reuseIdentifier:reuseIdentifier];
     }
     cell.tintColor = backgroundColor;
-    cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
-    if (cell.frame.size.height > cell.finishedHeight) {
-      cell.textLabel.text = reachText;
+    cell.finishedHeight = [LXMGlobalSettings sharedInstance].modifyingRowHeight;
+
+    if ([LXMTableViewState sharedInstance].addingProgress >= 1) {
+      cell.textLabel.text = committingText;
     } else {
       cell.textLabel.text = processingText;
     }
 
+    NSLog(@"**** cell for row: %@", cell);
     return cell;
   }
 
@@ -439,7 +429,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 //      }
 //    }
 //    cell.tintColor = backgroundColor;
-//    cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+//    cell.finishedHeight = [LXMGlobalSettings sharedInstance].modifyingRowHeight;
 //    if (cell.frame.size.height > cell.finishedHeight) {
 //      cell.textLabel.text = @"Release to create cell";
 //    } else {
@@ -457,9 +447,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     cell.delegate = self;
     cell.actualContentView.backgroundColor = backgroundColor;
     cell.strikeThroughText.textColor = [self textColorForRowAtIndexPath:indexPath];
-    if ([todoItem.text isEqualToString:kDummyCell]) {
-      cell.strikeThroughText.text = @"";
-    }
+
     return cell;
   }
 }
@@ -479,11 +467,11 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 - (UIColor *)colorForRowAtIndexPath:(NSIndexPath *)indexPath ignoreTodoItem:(BOOL)shouldIgnore {
   
-  UIColor *backgroundColor = [[LXMGlobalSettings sharedInstance].itemBaseColor colorWithHueOffset:[LXMGlobalSettings sharedInstance].colorHueOffset * (indexPath.row + 1) / self.todoItems.count];
+  UIColor *backgroundColor = [[LXMGlobalSettings sharedInstance].itemBaseColor lxm_colorWithHueOffset:[LXMGlobalSettings sharedInstance].colorHueOffset * (indexPath.row + 1) / self.todoList.todoItems.count];
 //  UIColor *backgroundColor = [UIColor clearColor];
   
   if (!shouldIgnore) {
-    if (self.todoItems[indexPath.row].isCompleted) {
+    if (self.todoList.todoItems[indexPath.row].isCompleted) {
       backgroundColor = [UIColor blackColor];
     }
   }
@@ -493,7 +481,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 - (UIColor *)textColorForRowAtIndexPath:(NSIndexPath *)indexPath {
   
-  if (self.todoItems[indexPath.row].isCompleted) {
+  if (self.todoList.todoItems[indexPath.row].isCompleted) {
     return [UIColor grayColor];
   } else {
     return [UIColor whiteColor];
@@ -503,10 +491,10 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 #pragma mark - LXMTableViewGestureAddingRowDelegate
 
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canAddCellAtIndexPath:(NSIndexPath *)indexPath {
-  if (indexPath.row == [self.todoItems count]) {
-    return !self.todoItems.lastObject.isCompleted;
+  if (indexPath.row == [self.todoList.todoItems count]) {
+    return !self.todoList.todoItems.lastObject.isCompleted;
   } else {
-    return indexPath.row == 0 || !self.todoItems[indexPath.row - 1].isCompleted;
+    return indexPath.row == 0 || !self.todoList.todoItems[indexPath.row - 1].isCompleted;
   }
 }
 
@@ -514,67 +502,64 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
   [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAdding;
 
-  void (^addBlock)() = ^ {
-    [self.todoItems insertObject:[LXMTodoItem todoItemWithUsage:usage] atIndex:indexPath.row];
+  // 块：（无动画）插入一个高度为零的行。
+
+  void (^insertRowWithAnimation)() = ^{
+    [self.todoList.todoItems insertObject:[LXMTodoItem todoItemWithUsage:usage] atIndex:indexPath.row];
     [self.tableView insertRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
   };
 
+  void (^insertRowWithoutAnimation)() = ^{
+    [UIView performWithoutAnimation:^{
+      insertRowWithAnimation();
+    }];
+  };
+
   switch (usage) {
-    case LXMTodoItemUsagePinchAdded: {
-      [UIView performWithoutAnimation:^{
-        addBlock();
-      }];
-    }
+    case LXMTodoItemUsagePinchAdded:
+      // 仅插入行即可。
+      insertRowWithoutAnimation();
       break;
 
     case LXMTodoItemUsageTapAdded: {
-      [UIView performWithoutAnimation:^{
-        addBlock();
+      // 用动画插入行。
+      [UIView beginAnimations:nil context:nil];
+      [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+      [CATransaction begin];
+      [CATransaction setCompletionBlock:^{
+        [self p_handleNewRowAtIndexPath:indexPath forAdding:YES];
       }];
+      [self.tableView beginUpdates];
+      insertRowWithAnimation();
+      [self.tableView endUpdates];
+      [CATransaction commit];
+      [UIView commitAnimations];
 
-      LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
-      POPAnimatableProperty *prop = [POPAnimatableProperty propertyWithName:@"FlipProcess" initializer:^(POPMutableAnimatableProperty *prop) {
-        prop.writeBlock = ^(id obj, const CGFloat values[]) {
-          NSLog(@"*** add begins");
-          self.tableViewState.addingProgress = values[0];
-//          cell.frame = CGRectMake(cell.frame.origin.x,
-//              cell.frame.origin.y,
-//              cell.frame.size.width,
-//              self.tableViewState.assistView.frame.size.height);
-          self.tableViewRecognizer.addingRowHeight = self.tableViewState.assistView.frame.size.height;
-          [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
-          NSLog(@"%f", self.tableViewState.addingProgress);
-          NSLog(@"cell height: %f", cell.frame.size.height);
-          NSLog(@"assview height: %f", self.tableViewState.assistView.frame.size.height);
-          NSLog(@"*** add finish");
-        };
-      }];
+      UITableViewCell *transformingCell = [self.tableView cellForRowAtIndexPath:indexPath];
 
-      POPBasicAnimation *animation = [POPBasicAnimation easeInAnimation];
-      animation.property = prop;
-      animation.fromValue = @(0);
-      animation.toValue = @(1);
-      animation.duration = LXMTableViewRowAnimationDurationNormal;
-      animation.beginTime = CACurrentMediaTime();
-      animation.completionBlock = ^(POPAnimation *animation, BOOL finished) {
-        self.tableViewState.addingProgress = 0;
-      };
-      [self.tableView pop_addAnimation:animation forKey:@"flip"];
-
-//      [UIView beginAnimations:nil context:nil];
-//      [CATransaction begin];
-//      [CATransaction setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
-//      [CATransaction commit];
-//      [UIView commitAnimations];
-//      [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal delay:0 options:nil animations:^{
-//        cell.frame = CGRectOffset(cell.frame, 0, [LXMGlobalSettings sharedInstance].addingRowFinishedHeight);
-//      } completion:^(BOOL finished) {
-//        [self gestureRecognizer:self.tableViewRecognizer needsCommitRowAtIndexPath:indexPath];
-//      }];
+      // 定义 pop 属性动画，随 table view update 动画刷新新插入行的 layout 至完成。
+      POPBasicAnimation *refreshCell = [POPBasicAnimation animationWithPropertyNamed:kPOPViewFrame];
+      refreshCell.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionDefault];
+      refreshCell.name = @"Refresh_Tranforming_Cell_With_Table_View_Updating";
+      refreshCell.duration = LXMTableViewRowAnimationDurationNormal;
+      refreshCell.fromValue = [NSValue valueWithCGRect:CGRectMake(transformingCell.frame.origin.x, transformingCell.frame.origin.y, transformingCell.frame.size.width, 0)];
+      refreshCell.toValue = [NSValue valueWithCGRect:
+                             CGRectMake(transformingCell.frame.origin.x,
+                                       transformingCell.frame.origin.y,
+                                       transformingCell.frame.size.width,
+                                       [LXMGlobalSettings sharedInstance].normalRowHeight)];
+      refreshCell.beginTime = CACurrentMediaTime();
+      [transformingCell pop_addAnimation:refreshCell forKey:@"LXMKey"];
     }
       break;
 
-    default:
+    case LXMTodoItemUsagePullAdded:
+      // TODO: 下拉新增todo
+      break;
+
+    case LXMTodoItemUsagePlaceholder:
+    case LXMTodoItemUsageNormal:
+      // TODO: 是否需要实现 placeholer 和 normal?
       break;
   }
 }
@@ -593,24 +578,21 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 //  }];
 //}
 
-- (void)recoverRowAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
+- (void)p_recoverRowAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
 
-  LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
-
+  UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
   CGFloat currentRowHeight = cell.frame.size.height;
-  CGFloat finishedRowHeight = shouldAdd ? [LXMGlobalSettings sharedInstance].addingRowFinishedHeight : 0;
+  CGFloat finishedRowHeight = shouldAdd ? [LXMGlobalSettings sharedInstance].normalRowHeight : 0;
 
-  LXMAnimationBlock block = ^(BOOL finished) {
+  LXMAnimationBlock recoverHeightAnimation = ^(BOOL finished) {
     if (indexPath.row > 0) {
+      // for pinch added rows
       [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
-        cell.frame =
-            CGRectMake(cell.frame.origin.x,
-                cell.frame.origin.y,
-                cell.frame.size.width,
-                finishedRowHeight);
-
+        // 设置新增 cell 的高度到正常行的高度或 0。
+        cell.frame = CGRectMake(cell.frame.origin.x, cell.frame.origin.y, cell.frame.size.width, finishedRowHeight);
+        // 恢复 table view 的 offset 和 inset。
         [self.tableViewState recoverTableViewContentOffsetAndInset];
-
+        // 恢复其余 cell 的位置
         for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
           if ([self.tableView indexPathForCell:visibleCell].row > indexPath.row) {
             if (shouldAdd) {
@@ -621,25 +603,88 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
           }
         }
       } completion:^(BOOL finished) {
+        // 发出操作完成的通知并刷新列表。
         [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
         [self.tableView reloadData];
         self.animationQueue.blockCompletion()(YES);
       }];
     } else {
-      // for pulldown added row
+      // for pulldown added rows
+      [UIView animateWithDuration:LXMTableViewRowAnimationDurationLong animations:^{
+
+      } completion:^(BOOL finished) {
+        // 发出操作完成的通知并刷新列表。
+        [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
+        [self.tableView reloadData];
+        self.animationQueue.blockCompletion()(YES);
+      }];
     }
   };
+
+  [self.animationQueue addAnimations:recoverHeightAnimation, nil];
+
+}
+
+- (void)p_replaceRowAtIndexPathToNormal:(NSIndexPath *)indexPath {
+
+  LXMAnimationBlock replaceWithNoAnimation = ^(BOOL finished) {
+    [UIView performWithoutAnimation:^{
+      [self.todoList.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:@""]];
+      [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
+    }];
+    [self.tableView reloadData];
+    self.animationQueue.blockCompletion()(YES);
+  };
+
+  [self.animationQueue addAnimations:replaceWithNoAnimation, nil];
+}
+
+- (void)p_assignModifyRowAtIndexPath:(NSIndexPath *)indexPath {
+
+  LXMAnimationBlock assignRowAnimation = ^(BOOL finished){
+    if (!self.todoList.todoItems[indexPath.row].isCompleted) {
+      LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+      [cell.strikeThroughText becomeFirstResponder];
+    }
+    self.animationQueue.blockCompletion();
+  };
+
+  [self.animationQueue addAnimations:assignRowAnimation, nil];
+}
+
+- (void)p_handleNewRowAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)willAdd {
+
+  if (willAdd) {
+    NSLog(@"1");
+    // 1. recover heigth
+    [self p_recoverRowAtIndexPath:indexPath forAdding:YES];
+    // 2. replace todo
+    [self p_replaceRowAtIndexPathToNormal:indexPath];
+    // 3. reload table view(put in step 2)
+    // 4. assign firstResponder
+    [self p_assignModifyRowAtIndexPath:indexPath];
+
+  } else {
+    // 1. set height to 0
+    // 2. delete tempt todo
+    // 3. reload table view
+  }
+
+  self.animationQueue.queueCompletion = ^(BOOL finished) {
+    NSLog(@"hahaha");
+  };
+  [self.animationQueue play];
 }
 
 - (void)resetCellAtIndexPath:(NSIndexPath *)indexPath forAdding:(BOOL)shouldAdd {
-/*
+
   [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateAnimating;
 
   LXMTransformableTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
   CGFloat finishedRowHeight;
   CGFloat currentRowHeight = cell.frame.size.height;
   if (shouldAdd) {
-    finishedRowHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
+    finishedRowHeight = [LXMGlobalSettings sharedInstance].modifyingRowHeight;
   } else {
     finishedRowHeight = 0;
   }
@@ -647,8 +692,8 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   LXMAnimationQueue *animationQueue = [LXMAnimationQueue new];
   LXMAnimationBlock resetTableView;
 
-  if (indexPath.row == 0) {
-    resetTableView = ^(BOOL finished) {
+  if (indexPath.row == 0) {/*
+    resetTableView = [^(BOOL finished) {
 
       CATransform3D identity, transform;
       if (shouldAdd) {
@@ -664,7 +709,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
         if (shouldAdd) {
           for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
             if ([self.tableView indexPathForCell:visibleCell].row != indexPath.row) {
-              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -(cell.frame.size.height - [LXMGlobalSettings sharedInstance].addingRowFinishedHeight));
+              visibleCell.frame = CGRectOffset(visibleCell.frame, 0, -(cell.frame.size.height - [LXMGlobalSettings sharedInstance].modifyingRowHeight));
             }
           }
           cell.frame =
@@ -683,9 +728,9 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
         [self.tableView reloadData];
         animationQueue.blockCompletion()(YES);
       }];
-    };
+    } copy];*/
   } else {
-    resetTableView = ^(BOOL finished) {
+    resetTableView = [^(BOOL finished) {
       [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal animations:^{
           cell.frame =
           CGRectMake(cell.frame.origin.x,
@@ -709,7 +754,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
         [self.tableView reloadData];
         animationQueue.blockCompletion()(YES);
       }];
-    };
+    } copy];
   }
 
   LXMAnimationBlock assignFirstResponder = ^(BOOL finished){
@@ -727,30 +772,30 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   };
 
   [animationQueue addAnimations:resetTableView, assignFirstResponder, nil];
-  [animationQueue play];*/
+  [animationQueue play];
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCommitRowAtIndexPath:(NSIndexPath *)indexPath {
   
-  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:@""]];
+  [self.todoList.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:@""]];
   LXMTransformableTableViewCell *cell = [recognizer.tableView cellForRowAtIndexPath:indexPath];
   [self resetCellAtIndexPath:indexPath forAdding:YES];
   
   
   BOOL isFirstRow = (indexPath.section == 0) && (indexPath.row == 0);
   if (isFirstRow) {
-    if (cell.frame.size.height > [LXMGlobalSettings sharedInstance].addingRowFinishedHeight * 2) {
-      [self.todoItems removeObjectAtIndex:indexPath.row];
+    if (cell.frame.size.height > [LXMGlobalSettings sharedInstance].modifyingRowHeight * 2) {
+      [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
       [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationMiddle];
     } else {
-      cell.finishedHeight = [LXMGlobalSettings sharedInstance].addingRowFinishedHeight;
-      cell.textLabel.text = @"Just added!";
+      cell.finishedHeight = [LXMGlobalSettings sharedInstance].modifyingRowHeight;
+//      cell.textLabel.text = @"Just added!";
     }
   }
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsDiscardRowAtIndexPath:(NSIndexPath *)indexPath {
-  [self.todoItems removeObjectAtIndex:indexPath.row];
+  [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
   [self resetCellAtIndexPath:indexPath forAdding:NO];
 }
 
@@ -827,7 +872,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
       break;
       
     case LXMTableViewCellEditingStateCompleting:
-      self.todoItems[indexPath.row].isCompleted = !self.todoItems[indexPath.row].isCompleted;
+      self.todoList.todoItems[indexPath.row].isCompleted = !self.todoList.todoItems[indexPath.row].isCompleted;
       [self bounceCell:cell check:YES];
       break;
   }
@@ -842,20 +887,20 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsCreatePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath {
   self.tableViewState.operationState = LXMTableViewOperationStateRearranging;
-  self.grabbedTodoItem = self.todoItems[indexPath.row];
-  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:kDummyCell]];
+  self.grabbedTodoItem = self.todoList.todoItems[indexPath.row];
+  [self.todoList.todoItems replaceObjectAtIndex:indexPath.row withObject:[LXMTodoItem todoItemWithText:kDummyCell]];
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsMovePlaceholderForRowAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath *)destinationIndexPath {
   
-  id object = self.todoItems[sourceIndexPath.row];
-  [self.todoItems removeObjectAtIndex:sourceIndexPath.row];
-  [self.todoItems insertObject:object atIndex:destinationIndexPath.row];
+  id object = self.todoList.todoItems[sourceIndexPath.row];
+  [self.todoList.todoItems removeObjectAtIndex:sourceIndexPath.row];
+  [self.todoList.todoItems insertObject:object atIndex:destinationIndexPath.row];
 }
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer needsReplacePlaceholderForRowAtIndexPath:(NSIndexPath *)indexPath {
   
-  [self.todoItems replaceObjectAtIndex:indexPath.row withObject:self.grabbedTodoItem];
+  [self.todoList.todoItems replaceObjectAtIndex:indexPath.row withObject:self.grabbedTodoItem];
   self.grabbedTodoItem = nil;
 }
 
@@ -924,5 +969,18 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     }
   }];
 }
+
+#pragma mark - PopAnimationDelegate
+
+//- (void)pop_animationDidApply:(POPAnimation *)anim {
+//  NSLog(@"%f", self);
+//}
+//
+//- (void)pop_animationDidStop:(POPAnimation *)anim finished:(BOOL)finished {
+//
+//  if (finished) {
+//    NSLog(@"100");
+//  }
+//}
 
 @end

@@ -38,6 +38,5 @@ typedef NS_ENUM(NSUInteger, LXMTransformableTableViewCellStyle) {
 @interface LXMFlippingTransformableTableViewCell : LXMTransformableTableViewCell <LXMTransformableTableViewCell>
 
 @property (nonatomic, strong) UIView *transformableView;
-@property (nonatomic, assign) CGFloat fraction;
 
 @end

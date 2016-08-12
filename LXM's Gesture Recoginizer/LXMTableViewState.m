@@ -7,7 +7,7 @@
 //
 
 #import "LXMTableViewState.h"
-#import "LXMGlobalSettings.h" 
+#import "LXMGlobalSettings.h"
 
 NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
@@ -15,7 +15,6 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
 // redefined public
 @property (nonatomic, strong, readwrite) NSArray<NSIndexPath *> *uneditableIndexPaths;
-@property (nonatomic, strong, readwrite) UIView *assistView;
 
 // private
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
@@ -24,6 +23,9 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
 @property (nonatomic, strong) CADisplayLink *displayLink; ///< 用于某些动画需要随动画进行更新某些值时的计算。
 @property (nonatomic, copy, nullable) void (^updatingBlock)(); ///< 动画需要随动画进行更新某些值时的计算块。
+
+@property (nonatomic, strong) UIView *unfoldingAssistView; ///< 一个不在屏幕上显示的，辅助计算 LXMUnfoldingTransformableTableViewCell 透视投影时的在屏幕上的显示高度的 view。
+@property (nonatomic, strong) UIView *flippingAssistView; ///< 一个不在屏幕上显示的，辅助计算 LXMFlippingTransformableTableViewCell 透视投影时的在屏幕上的显示高度的 view。
 
 @end
 
@@ -68,20 +70,61 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   return _uneditableIndexPaths;
 }
 
-- (UIView *)assistView {
+- (UIView *)unfoldingAssistView {
 
-  if (!_assistView) {
-    _assistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.addingRowFinishedHeight)];
+  if (!_unfoldingAssistView) {
+    _unfoldingAssistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.normalRowHeight / 2)];
+    _unfoldingAssistView.layer.anchorPoint = (CGPoint){0.5, 0};
   }
 
   if (_addingProgress >= 0) {
 
     CGFloat angle = acosf(_addingProgress);
-    _assistView.layer.anchorPoint = (CGPoint){0.5, 0};
-    _assistView.layer.transform = CATransform3DRotate([LXMGlobalSettings sharedInstance].addingTransform3D, angle, -1, 0, 0);
+    _unfoldingAssistView.layer.transform = CATransform3DRotate([LXMGlobalSettings sharedInstance].addingTransform3DIdentity, angle, -1, 0, 0);
   }
 
-  return _assistView;
+  return _unfoldingAssistView;
+}
+
+- (UIView *)flippingAssistView{
+
+  if (!_flippingAssistView) {
+    _flippingAssistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.normalRowHeight)];
+    _flippingAssistView.layer.anchorPoint = (CGPoint){0.5, 0};
+  }
+
+  if (_addingProgress >= 0) {
+
+    CGFloat angle = acosf(_addingProgress);
+    _flippingAssistView.layer.transform = CATransform3DRotate([LXMGlobalSettings sharedInstance].addingTransform3DIdentity, angle, -1, 0, 0);
+  }
+
+  return _flippingAssistView;
+}
+
+- (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage {
+
+  CGFloat static rowHeight = 0;
+
+  switch (usage) {
+    case LXMTodoItemUsageTapAdded:
+    case LXMTodoItemUsagePullAdded:
+      rowHeight = CGRectGetHeight(self.flippingAssistView.frame);
+      break;
+
+    case LXMTodoItemUsagePinchAdded:
+      rowHeight = CGRectGetHeight(self.unfoldingAssistView.frame) * 2;
+      break;
+
+    case LXMTodoItemUsageNormal:
+    case LXMTodoItemUsagePlaceholder:
+      break;
+
+    default:
+      break;
+  }
+
+  return rowHeight;
 }
 
 #pragma mark - display link
@@ -101,7 +144,9 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   self.displayLink.paused = YES;
   [self.displayLink invalidate];
   self.displayLink = nil;
-  endingBlock();
+  if (endingBlock) {
+    endingBlock();
+  }
   [self.tableView.visibleCells enumerateObjectsUsingBlock:^(__kindof UITableViewCell * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
     obj.layer.transform = CATransform3DIdentity;
   }];

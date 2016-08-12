@@ -211,7 +211,7 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
 }
 
 - (void)updateViewBackgroundColorWithPercentage:(CGFloat)percentage {
-  self.actualContentView.backgroundColor = [UIColor colorBetweenColor:self.lastBackgroundColor endColor:self.targetColor withPercentage:percentage];
+  self.actualContentView.backgroundColor = [UIColor lxm_colorBetweenColor:self.lastBackgroundColor endColor:self.targetColor withPercentage:percentage];
 }
 
 #pragma mark -  getters & setters

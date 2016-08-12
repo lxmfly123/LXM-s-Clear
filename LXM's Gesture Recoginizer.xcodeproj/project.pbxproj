@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A4613FCC46AD94725734DF2 /* LXMTodoList.m in Sources */ = {isa = PBXBuildFile; fileRef = 1A461358B0EA1FA96AB57AFB /* LXMTodoList.m */; };
 		5EBB37C6900CC38F3D443068 /* libPods-LXM's Gesture Recoginizer.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 641C81196C39DA288577829E /* libPods-LXM's Gesture Recoginizer.a */; };
 		A2F50F1D7E932FCC19B05C63 /* libPods-LXM's Gesture RecoginizerUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEBD006341FD592BD9862A47 /* libPods-LXM's Gesture RecoginizerUITests.a */; };
 		D90A3EED1CC9B00700DCF3DC /* LXMStrikeThroughText.m in Sources */ = {isa = PBXBuildFile; fileRef = D90A3EEC1CC9B00700DCF3DC /* LXMStrikeThroughText.m */; };
@@ -41,6 +42,8 @@
 
 /* Begin PBXFileReference section */
 		0FC54BF531F895DB99111A01 /* Pods-LXM's Gesture RecoginizerUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LXM's Gesture RecoginizerUITests.debug.xcconfig"; path = "Pods/Target Support Files/Pods-LXM's Gesture RecoginizerUITests/Pods-LXM's Gesture RecoginizerUITests.debug.xcconfig"; sourceTree = "<group>"; };
+		1A461358B0EA1FA96AB57AFB /* LXMTodoList.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = LXMTodoList.m; sourceTree = "<group>"; };
+		1A4613E9B42F762786EAADAD /* LXMTodoList.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LXMTodoList.h; sourceTree = "<group>"; };
 		641C81196C39DA288577829E /* libPods-LXM's Gesture Recoginizer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-LXM's Gesture Recoginizer.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		66AA82527CC314A0E3FD92B2 /* Pods-LXM's Gesture Recoginizer.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LXM's Gesture Recoginizer.release.xcconfig"; path = "Pods/Target Support Files/Pods-LXM's Gesture Recoginizer/Pods-LXM's Gesture Recoginizer.release.xcconfig"; sourceTree = "<group>"; };
 		AE5968F638C6AACC0B1F0D3B /* Pods-LXM's Gesture RecoginizerUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-LXM's Gesture RecoginizerUITests.release.xcconfig"; path = "Pods/Target Support Files/Pods-LXM's Gesture RecoginizerUITests/Pods-LXM's Gesture RecoginizerUITests.release.xcconfig"; sourceTree = "<group>"; };
@@ -178,6 +181,8 @@
 				D97AE6B81CA0D19200220937 /* LaunchScreen.storyboard */,
 				D97AE6BB1CA0D19200220937 /* Info.plist */,
 				D97AE6AA1CA0D19200220937 /* Supporting Files */,
+				1A461358B0EA1FA96AB57AFB /* LXMTodoList.m */,
+				1A4613E9B42F762786EAADAD /* LXMTodoList.h */,
 			);
 			path = "LXM's Gesture Recoginizer";
 			sourceTree = "<group>";
@@ -398,6 +403,7 @@
 				D92240B41CB89124008C3C30 /* LXMTodoItem.m in Sources */,
 				D90A3EED1CC9B00700DCF3DC /* LXMStrikeThroughText.m in Sources */,
 				D94392DF1CA4C4F8004DA841 /* UIColor+LXMTableViewGestureRecognizerHelper.m in Sources */,
+				1A4613FCC46AD94725734DF2 /* LXMTodoList.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -526,13 +532,23 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				GCC_PREFIX_HEADER = "LXM's Gesture Recoginizer/PrefixHeader.pch";
 				INFOPLIST_FILE = "LXM's Gesture Recoginizer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-l\"c++\"",
+					"-l\"pop\"",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.fly.LXM-s-Gesture-Recoginizer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
-				USER_HEADER_SEARCH_PATHS = "\"${PROJECT_DIR}/Pods\"/**";
+				USER_HEADER_SEARCH_PATHS = "\"${PROJECT_DIR}/Pods\"/** \"${PROJECT_DIR}/Pods\"/**";
 			};
 			name = Debug;
 		};
@@ -543,13 +559,23 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				GCC_PREFIX_HEADER = "LXM's Gesture Recoginizer/PrefixHeader.pch";
 				INFOPLIST_FILE = "LXM's Gesture Recoginizer/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+					"-l\"c++\"",
+					"-l\"pop\"",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.fly.LXM-s-Gesture-Recoginizer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
-				USER_HEADER_SEARCH_PATHS = "\"${PROJECT_DIR}/Pods\"/**";
+				USER_HEADER_SEARCH_PATHS = "\"${PROJECT_DIR}/Pods\"/** \"${PROJECT_DIR}/Pods\"/**";
 			};
 			name = Release;
 		};

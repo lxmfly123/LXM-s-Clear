@@ -10,7 +10,7 @@
 
 @implementation UIColor (LXMTableViewGestureRecognizerHelper)
 
-- (instancetype)colorWithBrightnessComponent:(CGFloat)brightnessComponent {
+- (instancetype)lxm_colorWithBrightnessComponent:(CGFloat)brightnessComponent {
 
   UIColor *color;
 
@@ -47,7 +47,7 @@
   return color;
 }
 
-- (instancetype)colorWithBrightnessOffset:(CGFloat)brightnessOffset {
+- (instancetype)lxm_colorWithBrightnessOffset:(CGFloat)brightnessOffset {
 
   UIColor *color;
 
@@ -85,7 +85,7 @@
   return color;
 }
 
-- (UIColor *)colorWithHueOffset:(CGFloat)hueOffset {
+- (UIColor *)lxm_colorWithHueOffset:(CGFloat)hueOffset {
 
   UIColor *color;
   CGFloat hue, saturation, brightness, alpha;
@@ -97,7 +97,7 @@
   return color;
 }
 
-+ (instancetype)colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage {
++ (instancetype)lxm_colorBetweenColor:(UIColor *)startColor endColor:(UIColor *)endColor withPercentage:(CGFloat)percentage {
   
   UIColor *color;
   CGFloat startHue, endHue, hue, saturation, brightness, alpha;

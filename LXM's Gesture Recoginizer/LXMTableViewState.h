@@ -8,10 +8,13 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import "LXMTodoItem.h"
 
 @class LXMTableViewCell;
+@class LXMTransformableTableViewCell;
+@class LXMTodoList;
 
-/// 当标记 todo 的操作的全部动画完成时，此通知被发送给当前 table view 的 `LXMTableViewGestureRecoginizer` 的实例。
+/// 当标记 todo 的操作的全部动画完成时，此通知被发送给当前 table view 的 `LXMTableViewGestureRecognizer` 的实例。
 extern NSString * const LXMOperationCompleteNotification;
 
 typedef NS_ENUM(NSUInteger, LXMTableViewOperationState) {
@@ -28,15 +31,19 @@ typedef NS_ENUM(NSUInteger, LXMTableViewOperationState) {
 @interface LXMTableViewState : NSObject
 
 @property (nonatomic, weak) UITableView *tableView;
+@property (nonatomic, weak) LXMTodoList *todoList;
 @property (nonatomic, assign) LXMTableViewOperationState operationState; ///<  当前 table view 的操作状态。
 @property (nonatomic, weak) LXMTableViewCell *panningCell; ///< 正在部左右拖动的 cell。
 @property (nonatomic, strong) NSIndexPath *modifyingRowIndexPath; ///< 正在修改文字的的行的 index path。
 @property (nonatomic, strong) NSMutableArray<LXMTableViewCell *> *floatingCells; ///< 修改完成状态后在处在上下移动状态的所有 cell。
 @property (nonatomic, strong) NSMutableArray<LXMTableViewCell *> *bouncingCells; ///< 水平拖动后在原位置左右跳动的所有 cell。
 @property (nonatomic, strong, readonly) NSArray<NSIndexPath *> *uneditableIndexPaths; ///< 因为处于竖直移动或者水平弹簧运动中，不可再进行拖动的所有 cell 的 index path。
-@property (nonatomic, assign) CGFloat addingProgress; ///< 新增待办项目时的手势操作进度，取值范围 0~1。
 
-@property (nonatomic, strong, readonly) UIView *assistView; ///< 一个不在屏幕上显示的，辅助计算 cell 透视投影时的在屏幕上的显示高度的 view。
+#pragma mark adding properties
+@property (nonatomic, weak) LXMTransformableTableViewCell *addingCell;
+@property (nonatomic, strong) NSIndexPath *addingRowIndexPath;
+@property (nonatomic, assign) CGFloat addingRowHeight; ///< 根据 addingProgress 自动计算的高度。
+@property (nonatomic, assign) CGFloat addingProgress; ///< 新增待办项目时的手势操作进度，取值范围 0~1。
 
 + (instancetype)sharedInstance;
 
@@ -44,6 +51,8 @@ typedef NS_ENUM(NSUInteger, LXMTableViewOperationState) {
 
 - (void)saveTableViewLastContentOffsetAndInset;
 - (void)recoverTableViewContentOffsetAndInset;
+
+- (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage; ///< 返回动画中或者手势执行时的新增行的行高。
 
 - (void)startAnimationWithBlock:(void (^__nonnull)())updatingBlock;
 - (void)stopAnimationWithBlock:(void (^__nullable)())endingBlock;

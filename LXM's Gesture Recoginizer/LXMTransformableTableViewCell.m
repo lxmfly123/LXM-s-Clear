@@ -19,7 +19,7 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
   CGFloat part3 = n * (h1 + h2);
   angle = 2 * atanf((part1 - part2) / part3);
   return angle;
-} ///< Make a offset curve from '(n, k, m)'. see http://lxm9.com/2016/04/19/sliding-damping-in-clear-the-app/
+} ///< 根据变换后的高度反解出变换的角度。
 
 @implementation LXMUnfoldingTransformableTableViewCell
 
@@ -38,8 +38,7 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
     self.transformable2HalfView.layer.anchorPoint = CGPointMake(0.5, 1);
     self.transformable2HalfView.clipsToBounds = YES;
     [self.contentView addSubview:self.transformable2HalfView];
-    
-    
+
     // 非常重要：self.bakcgroundColor 不能为透明，否则在动画过程中会row之间有大概率会产生细黑条
     self.backgroundColor = [UIColor blackColor];
     self.tintColor = [UIColor whiteColor];
@@ -49,7 +48,7 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
     self.textLabel.textColor = [UIColor whiteColor];
     
     self.detailTextLabel.backgroundColor = [UIColor clearColor];
-    
+
     self.selectionStyle = UITableViewCellSelectionStyleNone;
   }
   
@@ -59,28 +58,23 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
 - (void)layoutSubviews {
   
   [super layoutSubviews];
-  
-//  CGFloat fraction = (self.frame.size.height / self.finishedHeight);
-  CGFloat fraction = [LXMTableViewState sharedInstance].addingProgress;
-  fraction = MAX(MIN(1, fraction), 0);
-  CGFloat angle = acosf(fraction);
-  CATransform3D transform1 = CATransform3DMakeRotation(angle, -1, 0, 0);
-  CATransform3D transform2 = CATransform3DMakeRotation(angle, 1, 0, 0);
-  
-  self.transformable1HalfView.layer.transform = transform1;
-  self.transformable2HalfView.layer.transform = transform2;
-    
-  self.transformable1HalfView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.3f + 0.7f * fraction];
-  self.transformable2HalfView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * fraction];
-  
+
   CGSize contentViewSize = self.contentView.frame.size;
   CGFloat labelHeight = self.finishedHeight / 2;
-  CGFloat projectionHeight = [LXMTableViewState sharedInstance].addingProgress <= 1 ?
-                             [[LXMTableViewState sharedInstance] rowHeightForUsage:LXMTodoItemUsagePinchAdded] :
-                             self.finishedHeight;
+  CGFloat h1 = contentViewSize.height <= self.finishedHeight ? contentViewSize.height / 2 : labelHeight;
+  CGFloat fraction = 2 * h1 / self.finishedHeight;
 
-  self.transformable1HalfView.frame = CGRectMake(0, contentViewSize.height / 2 - projectionHeight / 2, contentViewSize.width, labelHeight + 1);
-  self.transformable2HalfView.frame = CGRectMake(0, contentViewSize.height / 2 - (labelHeight - CGRectGetHeight(self.transformable2HalfView.frame)), contentViewSize.width, labelHeight);
+  CGFloat angle = LXMTransformRotationFromHeights(h1, labelHeight, ABS(1.0 / self.contentView.layer.sublayerTransform.m34));
+
+  self.transformable1HalfView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.3f + 0.7f * fraction];
+  self.transformable2HalfView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * fraction];
+
+  self.transformable1HalfView.frame = CGRectMake(0, contentViewSize.height / 2 - h1, contentViewSize.width, labelHeight + 0.5);
+  self.transformable2HalfView.frame = CGRectMake(0, contentViewSize.height / 2 - (labelHeight - h1), contentViewSize.width, labelHeight);
+  CATransform3D transform1 = CATransform3DMakeRotation(angle, -1, 0, 0);
+  CATransform3D transform2 = CATransform3DMakeRotation(angle, 1, 0, 0);
+  self.transformable1HalfView.layer.transform = transform1;
+  self.transformable2HalfView.layer.transform = transform2;
   
   if ([self.textLabel.text length] > 0) {
     self.detailTextLabel.text = self.textLabel.text;
@@ -191,22 +185,21 @@ CG_INLINE CGFloat LXMTransformRotationFromHeights(CGFloat h1, CGFloat h2, CGFloa
 
   CGSize contentViewSize = self.contentView.frame.size;
   CGFloat labelHeight = self.finishedHeight;
+  CGFloat h1 = contentViewSize.height <= self.finishedHeight ? contentViewSize.height : self.finishedHeight;
+  CGFloat angle = LXMTransformRotationFromHeights(h1, labelHeight, ABS(1.0 / self.contentView.layer.sublayerTransform.m34));
+  CGFloat fraction = h1 / self.finishedHeight;
 
-  CGFloat angle = LXMTransformRotationFromHeights(self.frame.size.height, labelHeight, ABS(1.0 / self.contentView.layer.sublayerTransform.m34));
-
-  self.transformableView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * (contentViewSize.height / self.finishedHeight)];
+  self.transformableView.backgroundColor = [self.tintColor lxm_colorWithBrightnessComponent:0.5f + 0.5f * fraction];
   self.transformableView.frame = self.transformableView.layer.anchorPoint.y < 0.5f ?
                                  CGRectMake(0, 0, contentViewSize.width, labelHeight) :
-                                 CGRectMake(0, self.transformableView.frame.size.height - labelHeight, contentViewSize.width, labelHeight);
-  self.transformableView.layer.transform = CATransform3DMakeRotation(angle, -1, 0, 0);
+                                 CGRectMake(0, h1 - labelHeight, contentViewSize.width, labelHeight);
+  self.transformableView.layer.transform = CATransform3DMakeRotation(angle, self.transformableView.layer.anchorPoint.y < 0.5f ? -1 : 1, 0, 0);
 
   self.textLabel.frame =
       CGRectMake([LXMGlobalSettings sharedInstance].textFieldLeftMargin + [LXMGlobalSettings sharedInstance].textFieldLeftPadding,
                  0,
                  contentViewSize.width - 20.0f,
                  self.finishedHeight);
-
-//  NSLog(@"tranview height: %f", self.transformableView.frame.size.height);
 }
 
 - (UILabel *)textLabel {

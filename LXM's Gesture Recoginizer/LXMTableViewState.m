@@ -64,43 +64,13 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   }
   NSMutableArray<NSIndexPath *> *indexPaths = [[NSMutableArray alloc] initWithCapacity:5];
   [tempArray enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+    // FIXME: big bug!!!
     [indexPaths addObject:[self.tableView indexPathForCell:obj]];
   }];
   _uneditableIndexPaths = [NSArray arrayWithArray:indexPaths];
   return _uneditableIndexPaths;
 }
 
-- (UIView *)unfoldingAssistView {
-
-  if (!_unfoldingAssistView) {
-    _unfoldingAssistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.normalRowHeight / 2)];
-    _unfoldingAssistView.layer.anchorPoint = (CGPoint){0.5, 0};
-  }
-
-  if (_addingProgress >= 0) {
-
-    CGFloat angle = acosf(_addingProgress);
-    _unfoldingAssistView.layer.transform = CATransform3DRotate([LXMGlobalSettings sharedInstance].addingTransform3DIdentity, angle, -1, 0, 0);
-  }
-
-  return _unfoldingAssistView;
-}
-
-- (UIView *)flippingAssistView{
-
-  if (!_flippingAssistView) {
-    _flippingAssistView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 10, self.globalSettings.normalRowHeight)];
-    _flippingAssistView.layer.anchorPoint = (CGPoint){0.5, 0};
-  }
-
-  if (_addingProgress >= 0) {
-
-    CGFloat angle = acosf(_addingProgress);
-    _flippingAssistView.layer.transform = CATransform3DRotate([LXMGlobalSettings sharedInstance].addingTransform3DIdentity, angle, -1, 0, 0);
-  }
-
-  return _flippingAssistView;
-}
 
 - (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage {
 

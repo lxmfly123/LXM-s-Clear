@@ -464,11 +464,11 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
 
     if ([LXMTableViewState sharedInstance].operationState == LXMTableViewOperationStateNormal) {
-      if (!cell.todoItem.isCompleted) {
+      if ([cell isMemberOfClass:[LXMTableViewCell class]] && !cell.todoItem.isCompleted) {
         [cell.strikeThroughText becomeFirstResponder];
       } else {
         [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:[LXMTableViewState sharedInstance].todoList.numberOfUncompleted inSection:0];
-        [LXMTableViewState sharedInstance].addingRowHeight = 60;
+        [LXMTableViewState sharedInstance].addingRowHeight = 0;
         [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsageTapAdded];
       }
     } else {
@@ -489,29 +489,34 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
                          self.tableView.contentInset.bottom + self.tableView.bounds.size.height,
                          self.tableView.contentInset.right);
 
+    [LXMTableViewState sharedInstance].addingRowHeight = 0;
     [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsagePinchAdded];
   } else if (recognizer.state == UIGestureRecognizerStateChanged && recognizer.numberOfTouches >= 2) {
 
-//    [LXMTableViewState sharedInstance].addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
+    [LXMTableViewState sharedInstance].addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
     LXMPinchPoints currentPinchPoints = [self normalizePinchPointsForPinchGestureRecognizer:recognizer];
     [LXMTableViewState sharedInstance].addingProgress = [self pinchDistanceYOfPinchGestureRecognizer:recognizer] / [LXMGlobalSettings sharedInstance].normalRowHeight;
     CGFloat upperDistance = self.startingPinchPoints.upper.y - currentPinchPoints.upper.y;
+//    self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
 
-    if ([LXMTableViewState sharedInstance].addingProgress >= 0 && [LXMTableViewState sharedInstance].addingProgress <= 1) {
-      [LXMTableViewState sharedInstance].addingRowHeight = [[LXMTableViewState sharedInstance] rowHeightForUsage:LXMTodoItemUsagePinchAdded];
-      self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
-    } else if ([LXMTableViewState sharedInstance].addingProgress > 1) {
-      [LXMTableViewState sharedInstance].addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
-      self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
-    } else {
-      [LXMTableViewState sharedInstance].addingRowHeight = 0;
-      // TODO: pinch transform to totolist view
-    }
+//    if ([LXMTableViewState sharedInstance].addingProgress >= 0 && [LXMTableViewState sharedInstance].addingProgress <= 1) {
+//      [LXMTableViewState sharedInstance].addingRowHeight = /*[self pinchDistanceYOfPinchGestureRecognizer:recognizer]*/20;
+//      self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
+//    } else if ([LXMTableViewState sharedInstance].addingProgress > 1) {
+//      [LXMTableViewState sharedInstance].addingRowHeight = [self pinchDistanceYOfPinchGestureRecognizer:recognizer];
+//      self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
+//    } else {
+//      [LXMTableViewState sharedInstance].addingRowHeight = 0;
+//      // TODO: pinch transform to totolist view
+//    }
     if ([self.delegate respondsToSelector:@selector(gestureRecognizer:isAddingRowAtIndexPath:)]) {
       [self.delegate gestureRecognizer:self isAddingRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath];
     }
     [UIView performWithoutAnimation:^{
+      // FIXME: bug ———— 使用 updates 系列方法后，cell 文字不会随高度变化。
+      [self.tableView beginUpdates];
       [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+      [self.tableView endUpdates];
     }];
   } else if (recognizer.state == UIGestureRecognizerStateEnded || [recognizer numberOfTouches] < 2) {
     [self denyAllGestures];
@@ -695,6 +700,155 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 #pragma mark - UIScrollViewDelegate
 
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+
+  if (scrollView.contentOffset.y < 0 &&
+      self.state == LXMTableViewGestureRecognizerStateNone &&
+      ![LXMTableViewState sharedInstance].addingRowIndexPath) {
+    self.state = LXMTableViewGestureRecognizerStateDragging;
+    [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
+    [LXMTableViewState sharedInstance].addingRowHeight = fabsf(scrollView.contentOffset.y);
+    [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsagePullAdded];
+  }
+
+  if (self.state == LXMTableViewGestureRecognizerStateDragging &&
+      [LXMTableViewState sharedInstance].addingRowIndexPath) {
+    [LXMTableViewState sharedInstance].addingRowHeight -= scrollView.contentOffset.y;
+//    tempAddingRowHeight = [scrollView.panGestureRecognizer translationInView:scrollView].y;
+//    CGFloat fraction = tempAddingRowHeight / [LXMGlobalSettings sharedInstance].modifyingRowHeight;
+//    fraction = MAX(MIN(1, fraction), 0);
+//    CGFloat angle = acos(fraction);
+
+//    NSLog(@"%f", self.tableView.contentInset.top);
+
+//    if (tempAddingRowHeight > 60) {
+//      NSLog(@"Warning, <<%f>> > 60", tempAddingRowHeight);
+//    } else {
+//      NSLog(@"<<%f>> < 60", tempAddingRowHeight);
+//    }
+
+    /// 临时使用的 view，其变换设置与 pullDownCell 中 transformableView 一致，用于为 pullDownCell 计算行高。
+//    UIView *view = [LXMTableViewState sharedInstance].assistView;
+//    view.layer.anchorPoint = CGPointMake(0.5, 1);
+//    CATransform3D identity = CATransform3DIdentity;
+//    identity.m34 = [LXMGlobalSettings sharedInstance].addingM34;
+//    CATransform3D transform = CATransform3DRotate(identity, angle, 1, 0, 0);
+//    view.layer.transform = transform;
+
+//    if (view.frame.size.height < [LXMGlobalSettings sharedInstance].modifyingRowHeight) {
+//      self.modifyingRowHeight = view.frame.size.height;
+//    } else {
+//      self.modifyingRowHeight = MIN(tempAddingRowHeight, self.tableView.contentInset.bottom);
+//    }
+//
+//    [LXMTableViewState sharedInstance].addingProgress = fraction;
+//    [scrollView setContentOffset:[LXMTableViewState sharedInstance].lastContentOffset];
+    scrollView.contentOffset = CGPointZero;
+    [UIView performWithoutAnimation:^{
+      [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+    }];
+  }
+}
+
+//- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+//
+//  NSLog(@"%@", NSStringFromCGPoint(scrollView.contentOffset));
+//
+//  if (scrollView.contentOffset.y < 0) {
+//    if (![LXMTableViewState sharedInstance].addingRowIndexPath &&
+//        self.state == LXMTableViewGestureRecognizerStateNone &&
+//        !scrollView.isDecelerating) {
+//      self.state = LXMTableViewGestureRecognizerStateDragging;
+//      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
+//
+//      if ([LXMTableViewState sharedInstance].addingRowIndexPath) {
+//        [LXMTableViewState sharedInstance].addingRowHeight = fabsf(scrollView.contentOffset.y);
+//        [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsageNormal];
+////        [self.tableView insertRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+//      }
+////    } else {
+////      [LXMTableViewState sharedInstance].addingRowHeight -= scrollView.contentOffset.y;
+////        [UIView performWithoutAnimation:^{
+//////        [self.tableView beginUpdates];
+//////        [self.tableView endUpdates];
+////        [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+////      }];
+//    }
+//  }
+//
+//  if ([LXMTableViewState sharedInstance].addingRowIndexPath &&
+//      self.state == LXMTableViewGestureRecognizerStateDragging) {
+//    [LXMTableViewState sharedInstance].addingRowHeight -= scrollView.contentOffset.y;
+//    [UIView performWithoutAnimation:^{
+//        [self.tableView beginUpdates];
+//        [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+//        [self.tableView endUpdates];
+//    }];
+//    scrollView.ContentOffset = CGPointZero;
+//    NSLog(@"%@", NSStringFromCGPoint(scrollView.contentOffset));
+//  }
+////       NSLog(@">0");
+//}
+
+//- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
+//  if (self.state == LXMTableViewGestureRecognizerStateDragging) {
+//    self.state = LXMTableViewGestureRecognizerStateNone;
+//    [self commitOrDiscardCell];
+//  }
+//}
+
+//- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+//
+//}
+
+//- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+
+//  if (scrollView.isDragging) {
+//    if (![LXMTableViewState sharedInstance].addingRowIndexPath) {
+//      if (scrollView.contentOffset.y < 0) {
+//        [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
+//        [LXMTableViewState sharedInstance].addingRowHeight = 0;
+//        [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsagePullAdded];
+//      }
+//      scrollView.contentOffset = CGPointZero;}
+//    } else {
+//      [LXMTableViewState sharedInstance].addingRowHeight -= scrollView.contentOffset.y;
+//      [UIView performWithoutAnimation:^{
+////        [self.tableView beginUpdates];
+////        [self.tableView endUpdates];
+//        [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+//      }];
+//      NSLog(@"%@", NSStringFromCGPoint(scrollView.contentOffset));
+//      NSLog(@"%f", [LXMTableViewState sharedInstance].addingRowHeight);
+////      scrollView.contentOffset = CGPointZero;
+//    }
+//  }
+//
+//  if (scrollView.contentOffset.y <= 0) {
+//    if ([LXMTableViewState sharedInstance].addingRowIndexPath) {
+//      [UIView performWithoutAnimation:^{
+//        [self.tableView beginUpdates];
+//        [LXMTableViewState sharedInstance].addingRowHeight += -scrollView.contentOffset.y;
+//        [self.tableView endUpdates];
+//      }];
+//      scrollView.contentOffset = CGPointMake(0, 0);
+//    } else {
+//      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:0 inSection:0];
+//      [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsagePullAdded];
+//    }
+//  } else {
+//    if ([LXMTableViewState sharedInstance].addingRowIndexPath) {
+//      [LXMTableViewState sharedInstance].addingRowHeight += -scrollView.contentOffset.y;
+//      [UIView performWithoutAnimation:^{
+//        [self.tableView beginUpdates];
+//        [LXMTableViewState sharedInstance].addingRowHeight += -scrollView.contentOffset.y;
+//        [self.tableView endUpdates];
+//      }];
+//      scrollView.contentOffset = CGPointMake(0, 0);
+//    }
+//  }
+//}
+
 //CGFloat static tempAddingRowHeight = 0;
 /*
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
@@ -726,7 +880,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     return;
   }*/
   
-  /** 
+  /*
    存储手指向下拖动的长度。
    
    由于透视投影高度略小于与正射投影高度的原因，不能作为新增行的高度，只能用来辅助计算拖拽手势的完成度。
@@ -788,7 +942,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 - (void)scrollViewWillBeginDecelerating:(UIScrollView *)scrollView {
 
-  NSLog(@"%@", NSStringFromCGPoint(scrollView.contentOffset));
+  NSLog(@"Will begin decelerating: %@", NSStringFromCGPoint(scrollView.contentOffset));
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
@@ -805,12 +959,16 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 //    if (self.state == LXMTableViewGestureRecognizerStatePinching ||
 //        self.state == LXMTableViewGestureRecognizerStateDragging) {
       rowHeight = MAX(0, [LXMTableViewState sharedInstance].addingRowHeight);
-    NSLog(@"row height: %f", rowHeight);
+
 //    } else {
 //      rowHeight = self.tableView.rowHeight;
 //    }
   } else {
     rowHeight = [self.tableViewDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)] ? [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath] : self.tableView.rowHeight;
+  }
+
+  if (indexPath.section == 1) {
+    rowHeight = [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath];
   }
 
   return rowHeight;

@@ -63,6 +63,11 @@
   };
 }
 
+- (void)clearQueue {
+
+  [self.animations removeAllObjects];
+}
+
 - (void)play {
   self.blockCompletion()(YES);
 }

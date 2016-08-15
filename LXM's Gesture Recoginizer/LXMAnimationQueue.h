@@ -18,6 +18,7 @@ typedef void (^LXMAnimationBlock)(BOOL);
 //+ (instancetype)initWithAnimations:(LXMAnimationBlock)animation1, ... NS_REQUIRES_NIL_TERMINATION;
 
 - (void)addAnimations:(LXMAnimationBlock)animation1, ... NS_REQUIRES_NIL_TERMINATION;
+- (void)clearQueue;
 
 - (void)play;
 

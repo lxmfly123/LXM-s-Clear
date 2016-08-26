@@ -11,6 +11,13 @@
 
 typedef void (^LXMAnimationBlock)(BOOL);
 
+typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
+  LXMTableViewCellEditingStateNone,
+  LXMTableViewCellEditingStateNormal,
+  LXMTableViewCellEditingStateWillDelete,
+  LXMTableViewCellEditingStateWillCheck,
+};
+
 @interface LXMGlobalSettings : NSObject
 
 + (instancetype)sharedInstance;

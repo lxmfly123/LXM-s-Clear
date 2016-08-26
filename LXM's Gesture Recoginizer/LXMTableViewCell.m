@@ -9,7 +9,6 @@
 #import "LXMTableViewCell.h"
 #import "UIColor+LXMTableViewGestureRecognizerHelper.h"
 #import "LXMStrikeThroughText.h"
-#import "LXMGlobalSettings.h"
 
 typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
   LXMTableViewRowGestureHintCompletion,
@@ -115,12 +114,6 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
   
   [self.strikeThroughText setNeedsLayout];
 }
-
-//- (void)prepareForReuse {
-//
-//  self.transform = CGAffineTransformIdentity;
-//  self.isModifying = NO;
-//}
 
 - (CGFloat)gestureHintWidth {
   return [LXMGlobalSettings sharedInstance].editCommitTriggerWidth;
@@ -230,6 +223,16 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
   }
   _lastBackgroundColor = lastBackgroundColor;
 }
+
+// TODO: 应该使用 setter 更新?
+//- (void)setEditingState:(LXMTableViewCellEditingState)editingState {
+//
+//  _editingState = editingState;
+//
+//  switch (editingState) {
+//    case LXMTableViewCellEditingStateNone:
+//  }
+//}
 
 #pragma mark - UITextFieldDelegate
 

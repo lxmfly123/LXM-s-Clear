@@ -36,6 +36,8 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   if (self = [super init]) {
     self.floatingCells = [[NSMutableArray alloc] initWithCapacity:4];
     self.bouncingCells = [[NSMutableArray alloc] initWithCapacity:2];
+    self.floatingIndexPaths = [[NSMutableArray alloc] initWithCapacity:4];
+    self.bouncingIndexPaths = [[NSMutableArray alloc] initWithCapacity:2];
     self.globalSettings = [LXMGlobalSettings sharedInstance];
   }
 
@@ -54,6 +56,14 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 }
 
 #pragma mark - getters
+
+- (NSArray<NSIndexPath *> *)uneditableIndexPaths2 {
+
+  NSMutableArray *tempArray = [NSMutableArray arrayWithArray:_bouncingIndexPaths];
+  [tempArray addObjectsFromArray:_floatingIndexPaths];
+  _uneditableIndexPaths = [tempArray copy];
+  return _uneditableIndexPaths;
+}
 
 - (NSArray<NSIndexPath *> *)uneditableIndexPaths {
   
@@ -97,6 +107,30 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   return rowHeight;
 }
 
+#pragma mark - setters
+
+- (void)setPanningRowIndexPath:(NSIndexPath *)panningRowIndexPath {
+
+  _panningRowIndexPath = panningRowIndexPath;
+
+  if (panningRowIndexPath) {
+    _panningCell = [self.tableView cellForRowAtIndexPath:panningRowIndexPath];
+  } else {
+    _panningCell = nil;
+  }
+}
+
+- (void)setRearrangingRowIndexPath:(NSIndexPath *)rearrangingRowIndexPath {
+
+  _rearrangingRowIndexPath = rearrangingRowIndexPath;
+
+  if (rearrangingRowIndexPath) {
+    _rearrangingCell = [self.tableView cellForRowAtIndexPath:rearrangingRowIndexPath];
+  } else {
+    _rearrangingCell = nil;
+  }
+}
+
 #pragma mark - display link
 
 - (void)startAnimationWithBlock:(void (^__nonnull)())updatingBlock {
@@ -135,7 +169,7 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 - (void)resetState {
   
   self.tableView = nil;
-  self.panningCell = nil;
+//  panningCell = nil;
   [self.bouncingCells removeAllObjects];
   [self.floatingCells removeAllObjects];
 }

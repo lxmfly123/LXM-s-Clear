@@ -71,6 +71,7 @@ static const CGFloat kStrikeThroughThickness = 1.0f;
     _strikeThroughLine.hidden = YES;
     [self.layer addSublayer:_strikeThroughLine];
   }
+
   return _strikeThroughLine;
 }
 
@@ -86,8 +87,8 @@ static const CGFloat kStrikeThroughThickness = 1.0f;
   
   switch (self.parentCell.editingState) {
     case LXMTableViewCellEditingStateNone:
-    case LXMTableViewCellEditingStateDeleting:
-    case LXMTableViewCellEditingStateCompleting:
+    case LXMTableViewCellEditingStateWillDelete:
+    case LXMTableViewCellEditingStateWillCheck:
       break;
       
     case LXMTableViewCellEditingStateNormal:
@@ -126,7 +127,7 @@ static const CGFloat kStrikeThroughThickness = 1.0f;
   
   switch (self.parentCell.editingState) {
     case LXMTableViewCellEditingStateNone:
-    case LXMTableViewCellEditingStateDeleting:
+    case LXMTableViewCellEditingStateWillDelete:
       self.strikeThroughLine.hidden = !self.parentCell.todoItem.isCompleted;
       break;
       
@@ -137,15 +138,13 @@ static const CGFloat kStrikeThroughThickness = 1.0f;
       }
       break;
       
-    case LXMTableViewCellEditingStateCompleting:
+    case LXMTableViewCellEditingStateWillCheck:
 
       self.strikeThroughLine.hidden = self.parentCell.todoItem.isCompleted;
       break;
   }
   [CATransaction commit];
 }
-
-
 
 - (CGRect)textRectForBounds:(CGRect)bounds {
   
@@ -156,13 +155,5 @@ static const CGFloat kStrikeThroughThickness = 1.0f;
   
   return [self textRectForBounds:bounds];
 }
-
-# pragma mark - setters & getters
-
-//- (void)setText:(NSString *)text {
-//  
-//  NSString *_text = [super text];
-//  _text = text;
-//}
 
 @end

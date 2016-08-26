@@ -10,6 +10,7 @@
 #import "LXMTodoItem.h"
 #import "LXMTableViewState.h"
 #import "LXMStrikeThroughText.h"
+#import "LXMGlobalSettings.h"
 
 @class LXMTableViewCell;
 
@@ -22,13 +23,6 @@
 
 @end
 
-
-typedef NS_ENUM(NSUInteger, LXMTableViewCellEditingState) {
-  LXMTableViewCellEditingStateNone,
-  LXMTableViewCellEditingStateNormal,
-  LXMTableViewCellEditingStateDeleting,
-  LXMTableViewCellEditingStateCompleting,
-};
 
 @interface LXMTableViewCell : UITableViewCell
 

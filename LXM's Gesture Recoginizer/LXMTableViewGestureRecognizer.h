@@ -63,6 +63,7 @@ typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canEditRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
+- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath;
 
 @optional
 // use cell directly

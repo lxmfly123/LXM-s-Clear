@@ -13,10 +13,13 @@
 #import "LXMTableViewGestureRecognizer.h"
 #import "LXMTransformableTableViewCell.h"
 #import "LXMTodoList.h"
+#import "LXMTableViewHelper.h"
 #import <pop/POP.h>
 #import "LXMTableViewState.h"
 #import "LXMStrikeThroughText.h"
-#import "UIColor+LXMTableViewGestureRecognizerHelper.h"#import "POPBasicAnimationInternal.h"#import "POPAnimationInternal.h"
+#import "UIColor+LXMTableViewGestureRecognizerHelper.h"
+#import "POPBasicAnimationInternal.h"
+#import "POPAnimationInternal.h"
 
 static NSString * const kAddingCell = @"Continue";
 static NSString * const kDoneCell = @"Done";
@@ -29,7 +32,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 @property (nonatomic, weak) LXMTableViewState *tableViewState;
 @property (nonatomic, strong) LXMTodoList *todoList;
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
-//@property (nonatomic, strong) NSMutableArray<LXMTodoItem *> *todoItems;
+@property (nonatomic, weak) LXMTableViewHelper *helper;
 
 @property (nonatomic, strong) LXMTodoItem *grabbedTodoItem; ///< 长按时要移动的项目。
 
@@ -73,6 +76,8 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   self.tableViewState = [LXMTableViewState sharedInstance];
   self.tableViewState.tableView = self.tableView;
   self.tableViewState.todoList = self.todoList;
+
+  self.helper.todoList = self.todoList;
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -152,6 +157,15 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 
 #pragma mark - getters
 
+- (LXMTableViewHelper *)helper {
+
+  if (_helper == nil) {
+    _helper = [LXMTableViewHelper sharedInstance];
+  }
+
+  return _helper;
+}
+
 - (LXMAnimationQueue *)animationQueue {
 
   if (_animationQueue == nil) {
@@ -216,14 +230,14 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 }
 
 - (NSIndexPath *)movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath {
-  
+
   NSUInteger __block index = 0;
-  [self.todoList.todoItems enumerateObjectsUsingBlock:^(LXMTodoItem * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+  [self.todoList.todoItems enumerateObjectsUsingBlock:^(LXMTodoItem *_Nonnull obj, NSUInteger idx, BOOL *_Nonnull stop) {
     if (!obj.isCompleted && (idx != indexPath.row)) {
       ++index;
     }
   }];
-  
+
   return [NSIndexPath indexPathForRow:index inSection:0];
 }
 
@@ -357,7 +371,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   }
 
   LXMTodoItem *todoItem = self.todoList.todoItems[indexPath.row];
-  UIColor *backgroundColor = [self colorForRowAtIndexPath:indexPath];
+  UIColor *backgroundColor = [self.helper colorForRowAtIndexPath:indexPath];
 
   if (todoItem.usage != LXMTodoItemUsageNormal) {
     NSString *reuseIdentifier;
@@ -818,6 +832,10 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   
   return canEdit;
 }
+- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath {
+
+  return [self movingDestinationIndexPathForRowAtIndexPath:indexPath];
+}
 
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath {
 
@@ -833,7 +851,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
         break;
         
       case LXMTableViewCellEditingStateWillCheck:
-        cell.actualContentView.backgroundColor = [self colorForRowAtIndexPath:[self movingDestinationIndexPathForRowAtIndexPath:indexPath] ignoreTodoItem:YES];
+        cell.actualContentView.backgroundColor = [self.helper colorForRowAtIndexPath:[self movingDestinationIndexPathForRowAtIndexPath:indexPath] ignoreTodoItem:YES];
         cell.strikeThroughText.textColor = [UIColor whiteColor];
         break;
       
@@ -844,7 +862,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     switch (editingState) {
       case LXMTableViewCellEditingStateWillDelete:
       case LXMTableViewCellEditingStateNormal:
-        cell.actualContentView.backgroundColor = [self colorForRowAtIndexPath:indexPath];
+        cell.actualContentView.backgroundColor = [self.helper colorForRowAtIndexPath:indexPath];
         cell.strikeThroughText.textColor = [UIColor whiteColor];
         break;
         

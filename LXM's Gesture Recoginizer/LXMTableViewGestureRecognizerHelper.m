@@ -8,6 +8,8 @@
 #import "LXMTableViewGestureRecognizer.h"
 #import "LXMAnimationQueue.h"
 #import "LXMTransformableTableViewCell.h"
+#import "LXMTableViewHelper.h"
+#import "LXMTodoList.h"
 
 
 /// Pinch 时的两个点。
@@ -39,6 +41,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 @property (nonatomic, assign) LXMPinchPoints startingPinchPoints;
 @property (nonatomic, weak) LXMTableViewState *tableViewState;
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
+@property (nonatomic, weak) LXMTableViewHelper *tableViewHelper;
 @property (nonatomic, weak) UITableView *tableView;
 @property (nonatomic, strong) NSIndexPath *addingRowIndexPath;
 @property (nonatomic, strong) NSTimer *movingTimer;
@@ -60,6 +63,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
     self.tableView = self.tableViewState.tableView;
     self.scrollingRate = 10;
     self.globalSettings = [LXMGlobalSettings sharedInstance];
+    self.tableViewHelper = [LXMTableViewHelper sharedInstance];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
   }
@@ -508,6 +512,108 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
   };
 
   [self.animationQueue addAnimations:assignRowAnimation, nil];
+}
+
+- (void)bounceRowAtIndex:(NSIndexPath *)indexPath check:(BOOL)shouldCheck {
+
+//  self.tableViewState.operationState = LXMTableViewOperationStateCodeAnimating2;
+//  [self.tableViewGestureRecognizer allowGesturesOnly:LXMTableViewGestureRecognizerOptionsTap |
+//      LXMTableViewGestureRecognizerOptionsHorizontalPan];
+
+//  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+  LXMTableViewCell *cell = self.tableViewState.panningCell;
+  NSIndexPath *destinationIndexPath;
+
+//  [self.tableViewState.bouncingCells insertObject:cell atIndex:0];
+  [self.tableViewState.bouncingIndexPaths insertObject:indexPath atIndex:0];
+
+  if (shouldCheck) {
+    destinationIndexPath = [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer movingDestinationIndexPathForRowAtIndexPath:indexPath];
+  }
+
+  [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal
+                        delay:0
+       usingSpringWithDamping:0.6
+        initialSpringVelocity:8
+                      options:UIViewAnimationOptionCurveEaseInOut
+                   animations:^{
+                     cell.actualContentView.frame = cell.contentView.frame;
+                     [cell.strikeThroughText setNeedsLayout];
+                   }
+                   completion:^(BOOL finished) {
+                     if (shouldCheck) {
+                       NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
+                       [self moveRowAtIndexPath:indexPath toIndexPath:destinationIndexPath];
+                     }
+                     [self.tableViewState.bouncingIndexPaths removeLastObject];
+//                     if (self.tableViewState.uneditableIndexPaths.count == 0) {
+                     if (self.tableViewState.uneditableIndexPaths2.count == 0) {
+//                       self.tableViewState.operationState = LXMTableViewOperationStateCodeNormal;
+                       [self.tableViewGestureRecognizer allowAllGestures];
+                     }
+                   }];
+}
+
+- (void)moveRowAtIndexPath:(NSIndexPath *)indexPath toIndexPath:(NSIndexPath *)newIndexPath {
+
+  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
+  if (cell.todoItem.isCompleted) {
+    cell.actualContentView.backgroundColor = [self.tableViewHelper colorForRowAtIndexPath:indexPath];
+    cell.strikeThroughText.textColor = [self.tableViewHelper textColorForRowAtIndexPath:indexPath];
+  }
+
+//  [self.tableViewState.floatingCells insertObject:cell atIndex:0];
+  [self.tableViewState.floatingIndexPaths insertObject:newIndexPath atIndex:0];
+
+  void (^completionBlock)(void) = ^{
+//    [self.tableViewState.floatingCells removeLastObject];
+    [self.tableViewState.floatingIndexPaths removeLastObject];
+    [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
+//    if (self.tableViewState.uneditableIndexPaths.count == 0) {
+    if (self.tableViewState.uneditableIndexPaths2.count == 0) {
+      [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
+      [self.tableView reloadData];
+    }
+  };
+
+  NSIndexPath *firstVisibleIndexPath = [self.tableView indexPathForCell:[self.tableView.visibleCells firstObject]];
+  NSIndexPath *lastVisibleIndexPath = [self.tableView indexPathForCell:[self.tableView.visibleCells lastObject]];
+
+//  if (newIndexPath.row > lastVisibleIndexPath.row || newIndexPath.row < firstVisibleIndexPath.row) {
+//    NSIndexPath *tempTargetIndexPath;
+//    if (newIndexPath.row > lastVisibleIndexPath.row) {
+//      tempTargetIndexPath = lastVisibleIndexPath;
+//    } else {
+//      tempTargetIndexPath = firstVisibleIndexPath;
+//    }
+//
+//    [UIView beginAnimations:nil context:nil];
+//    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+//    [CATransaction begin];
+//    [CATransaction setCompletionBlock:^{
+//      LXMTodoItem *tempItem = self.todoList.todoItems[tempTargetIndexPath.row];
+//      [self.todoList.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
+//      [self.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+//      completionBlock();
+//    }];
+//    LXMTodoItem *tempItem = self.todoList.todoItems[indexPath.row];
+//    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
+//    [self.todoList.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
+//    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:tempTargetIndexPath];
+//    [CATransaction commit];
+//    [UIView commitAnimations];
+//  } else {
+  LXMTodoItem *tempItem = self.tableViewHelper.todoList.todoItems[indexPath.row];
+  [self.tableViewHelper.todoList.todoItems removeObjectAtIndex:indexPath.row];
+  [self.tableViewHelper.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+  [UIView beginAnimations:nil context:nil];
+  [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
+  [CATransaction begin];
+  [CATransaction setCompletionBlock:completionBlock];
+  [self.tableView moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
+  [CATransaction commit];
+  [UIView commitAnimations];
+//  }
 }
 
 @end

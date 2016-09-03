@@ -29,4 +29,6 @@
 
 - (void)deleteRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)commitOrDiscardRow;
+
+- (void)bounceRowAtIndex:(NSIndexPath *)indexPath check:(BOOL)shouldCheck;
 @end

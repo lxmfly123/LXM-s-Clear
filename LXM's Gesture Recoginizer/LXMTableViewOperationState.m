@@ -27,6 +27,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
   if (recognizer.state == UIGestureRecognizerStateBegan) {
 
     self.tableViewState.addingRowIndexPath = [self.tableViewGestureRecognizer.helper addingRowIndexPathForGestureRecognizer:recognizer];
+    self.tableViewState.addingRowHeight = 0;
     NSAssert(self.tableViewState.addingRowIndexPath != nil, @"addingRowIndexPath 不能为 nil。");
 
     [self.tableViewState saveTableViewContentOffsetAndInset];
@@ -37,7 +38,6 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
                          self.tableView.contentInset.bottom + self.tableView.bounds.size.height,
                          self.tableView.contentInset.right);
 
-    self.tableViewState.addingRowHeight = 0;
     [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
                                          needsAddRowAtIndexPath:self.tableViewState.addingRowIndexPath
                                                           usage:LXMTodoItemUsagePinchAdded];

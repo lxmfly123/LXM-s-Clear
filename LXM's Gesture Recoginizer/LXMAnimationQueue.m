@@ -58,9 +58,13 @@
 
 - (LXMAnimationBlock)queueCompletion {
 
-  return ^(BOOL finished) {
-    NSLog(@"Queue finished. ");
-  };
+  if (!_queueCompletion) {
+    return ^(BOOL finished) {
+      NSLog(@"Queue finished. ");
+    };
+  } else {
+    return _queueCompletion;
+  }
 }
 
 - (void)clearQueue {

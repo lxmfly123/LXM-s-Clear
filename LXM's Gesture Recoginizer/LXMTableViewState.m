@@ -174,7 +174,7 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   [self.floatingCells removeAllObjects];
 }
 
-- (void)saveTableViewLastContentOffsetAndInset {
+- (void)saveTableViewContentOffsetAndInset {
 
   self.lastContentOffset = self.tableView.contentOffset;
   self.lastContentInset = self.tableView.contentInset;

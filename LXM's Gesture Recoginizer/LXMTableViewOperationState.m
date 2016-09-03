@@ -29,6 +29,8 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     self.tableViewState.addingRowIndexPath = [self.tableViewGestureRecognizer.helper addingRowIndexPathForGestureRecognizer:recognizer];
     NSAssert(self.tableViewState.addingRowIndexPath != nil, @"addingRowIndexPath 不能为 nil。");
 
+    [self.tableViewState saveTableViewContentOffsetAndInset];
+
     self.tableView.contentInset =
         UIEdgeInsetsMake(self.tableView.contentInset.top + self.tableView.bounds.size.height,
                          self.tableView.contentInset.left,
@@ -153,7 +155,6 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
 
     if ([cell isMemberOfClass:[LXMTableViewCell class]] && !cell.todoItem.isCompleted) {
-      cell.delegate = self.tableViewGestureRecognizer;
       [cell.strikeThroughText becomeFirstResponder];
       self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateRecovering;
     } else {
@@ -273,7 +274,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     [UIView performWithoutAnimation:^{
       // FIXME: bug ———— 使用 updates 系列方法后，cell 文字不会随高度变化。
       [self.tableView beginUpdates];
-//      [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
+      [self.tableView reloadRowsAtIndexPaths:@[[LXMTableViewState sharedInstance].addingRowIndexPath] withRowAnimation:UITableViewRowAnimationNone];
       [self.tableView endUpdates];
     }];
   } else if (recognizer.state == UIGestureRecognizerStateEnded) {
@@ -425,7 +426,6 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 @end
 
-
 /// Processing Operation State
 @interface LXMTableViewOperationStateProcessing <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
 @end
@@ -526,6 +526,10 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 - (void)handleScroll:(UITableView *)tableView {
   NSAssert(NO, @"仅能在子类中调用。");
+}
+
+- (void)shouldChangeToOperationState:(id<LXMTableViewOperationStateProtocol>)operationState {
+  self.tableViewGestureRecognizer.operationState = operationState;
 }
 
 @end

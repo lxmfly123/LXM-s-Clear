@@ -73,9 +73,6 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
   self.tableViewState = [LXMTableViewState sharedInstance];
   self.tableViewState.tableView = self.tableView;
   self.tableViewState.todoList = self.todoList;
-
-  
-  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -283,7 +280,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
     [self.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
     [UIView beginAnimations:nil context:nil];
-    [UIView setAnimationDuration:3];
+    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
     [CATransaction begin];
     [CATransaction setCompletionBlock:completionBlock];
     [self.tableView moveRowAtIndexPath:indexPath toIndexPath:newIndexPath];
@@ -420,6 +417,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
     }
     cell.todoItem = todoItem;
     // FIXME: cell.deegate 应该是 tableviewGGestureRecognizer or helper
+    cell.delegate = self.tableViewRecognizer;
     cell.actualContentView.backgroundColor = backgroundColor;
     cell.strikeThroughText.textColor = [self textColorForRowAtIndexPath:indexPath];
 
@@ -925,7 +923,7 @@ static const CGFloat kNormalCellFinishedHeight = 60.0f;
 //  cell.isModifying = YES;
 //
 //  self.tableViewState.modifyingRowIndexPath = [self.tableView indexPathForCell:cell];
-//  [self.tableViewState saveTableViewLastContentOffsetAndInset];
+//  [self.tableViewState saveTableViewContentOffsetAndInset];
 ////  self.tableViewState.operationState = LXMTableViewOperationStateCodeModifying;
 //  [self.tableViewRecognizer allowGesturesOnly:LXMTableViewGestureRecognizerOptionsTap | LXMTableViewGestureRecognizerOptionsVerticalPan];
 //

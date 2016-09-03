@@ -325,11 +325,18 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 
   BOOL shouldCommit = [LXMTableViewState sharedInstance].addingRowHeight > self.tableView.rowHeight;
 
+  __weak LXMTableViewGestureRecognizerHelper *weakSelf = self;
+  self.animationQueue.queueCompletion = ^(BOOL finished) {
+    NSLog(@"100");
+    weakSelf.tableViewGestureRecognizer.operationState = weakSelf.tableViewGestureRecognizer.operationStateNormal;
+    weakSelf.tableViewState.addingRowIndexPath = nil;
+    weakSelf.tableViewState.addingRowHeight = 0;
+  };
   if (!shouldCommit) {
-    [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
-                                     needsDiscardRowAtIndexPath:indexPath];
+    [self p_recoverRowAtIndexPath:indexPath forAdding:shouldCommit];
+    [self.animationQueue play];
   } else {
-    [self p_recoverRowAtIndexPath:self.tableViewState.addingRowIndexPath forAdding:shouldCommit];
+    [self p_recoverRowAtIndexPath:indexPath forAdding:shouldCommit];
     [self p_replaceRowAtIndexPathToNormal:indexPath];
     [self p_assignModifyRowAtIndexPath:indexPath];
     [self.animationQueue play];
@@ -462,6 +469,11 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
       self.tableViewState.addingRowHeight = shouldAdd ? self.tableView.rowHeight : 0;
     } completion:^{
 //      [self.tableView reloadData];
+      if (!shouldAdd) {
+        [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
+                                         needsDiscardRowAtIndexPath:indexPath];
+        [self.tableView reloadData];
+      }
       self.animationQueue.blockCompletion()(YES);
     }];
   };
@@ -477,7 +489,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
                                         needsCommitRowAtIndexPath:indexPath];
       [self.tableView reloadRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationNone];
     }];
-    [self.tableView reloadData];
+//    [self.tableView reloadData];
     NSLog(@"reload");
     self.animationQueue.blockCompletion()(YES);
   };

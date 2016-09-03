@@ -15,7 +15,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "568"
             endingLineNumber = "568"
-            landmarkName = "-gestureRecognizer:needsAddRowAtIndexPath:usage:"
+            landmarkName = "-p_recoverRowAtIndexPath:withBlock:forAdding:"
             landmarkType = "5">
          </BreakpointContent>
       </BreakpointProxy>

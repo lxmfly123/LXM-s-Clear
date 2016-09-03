@@ -237,25 +237,25 @@ typedef NS_ENUM(NSUInteger, LXMTableViewRowGestureHintType) {
 #pragma mark - UITextFieldDelegate
 
 - (BOOL)textFieldShouldBeginEditing:(UITextField *)textField {
-  
+
   return [self.delegate tableViewCellShouldBeginTextEditing:self];
 }
 
 - (void)textFieldDidBeginEditing:(UITextField *)textField {
-  
+
   [self.delegate tableViewCellDidBeginTextEditing:self];
 }
 
 
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
-  
+
   [textField resignFirstResponder];
   return YES;
 }
 
 - (BOOL)textFieldShouldEndEditing:(UITextField *)textField {
-  
-  return [self.delegate tableViewCellShouldEndTextEditing:self];;
+
+  return [self.delegate tableViewCellShouldEndTextEditing:self];
 }
 
 - (void)textFieldDidEndEditing:(UITextField *)textField {

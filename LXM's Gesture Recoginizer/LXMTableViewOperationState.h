@@ -33,7 +33,7 @@ typedef NS_ENUM(NSUInteger, LXMTableViewOperationStateCode) {
 
 @optional
 
-- (void)didFinished; ///< 应该有一个方法，能够在上一个状态完成后，跳转到下一个状态。
+- (void)shouldChangeToOperationState:(id<LXMTableViewOperationStateProtocol>)operationState; ///< 应该有一个方法，能够在上一个状态完成后，跳转到下一个状态。
 
 @end
 

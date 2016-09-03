@@ -76,7 +76,7 @@ extern NSString * const LXMOperationCompleteNotification; ///< 当标记 todo �
 
 - (void)resetState;
 
-- (void)saveTableViewLastContentOffsetAndInset;
+- (void)saveTableViewContentOffsetAndInset;
 - (void)recoverTableViewContentOffsetAndInset;
 
 - (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage; ///< 返回动画中或者手势执行时的新增行的行高。

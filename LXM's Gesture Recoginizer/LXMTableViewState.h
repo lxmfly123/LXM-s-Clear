@@ -16,6 +16,8 @@
 @class LXMTransformableTableViewCell;
 @class LXMTodoList;
 @class LXMTableViewGestureRecognizer;
+@class LXMTableViewGestureRecognizerHelper;
+@class LXMTableViewHelper;
 
 extern NSString * const LXMOperationCompleteNotification; ///< 当标记 todo 的操作的全部动画完成时，此通知被发送给当前 table view 的 `LXMTableViewGestureRecognizer` 的实例。
 
@@ -36,9 +38,20 @@ extern NSString * const LXMOperationCompleteNotification; ///< 当标记 todo �
 
 @interface LXMTableViewState : NSObject
 
+// shared properties
+@property (nonatomic, weak) UIViewController *viewController;
 @property (nonatomic, weak) UITableView *tableView;
-@property (nonatomic, weak) LXMTodoList *todoList;
+@property (nonatomic, weak) LXMTodoList *list;
+
+// recognizer and helpers
+@property (nonatomic, strong) LXMTableViewGestureRecognizer *tableViewGestureRecognizer;
+@property (nonatomic, weak) LXMTableViewGestureRecognizerHelper *recognizerHelper;
+@property (nonatomic, weak) LXMTableViewHelper *tableViewHelper;
+@property (nonatomic, weak) id <UITableViewDelegate> tableViewDelegate; ///< Ordinary delegate of table view.
+
 //@property (nonatomic, assign) LXMTableViewOperationStateCode operationState; ///<  当前 table view 的操作状态。
+@property (nonatomic, assign) CGPoint lastContentOffset; ///< 上个 operation state 结束时的 content offset
+@property (nonatomic, assign) UIEdgeInsets lastContentInset; ///< 上个 operation state 结束时的 content inset
 @property (nonatomic, weak, readonly) LXMTableViewCell *panningCell; ///< 正在部左右拖动的 cell。
 @property (nonatomic, assign) LXMTableViewCellEditingState panningCellEditingState; ///< 正在部左右拖动的 cell 的 editingState。
 @property (nonatomic, strong) NSIndexPath *panningRowIndexPath;
@@ -53,33 +66,31 @@ extern NSString * const LXMOperationCompleteNotification; ///< 当标记 todo �
 @property (nonatomic, strong, readonly) NSArray<NSIndexPath *> *uneditableIndexPaths; ///< 因为处于竖直移动或者水平弹簧运动中，不可再进行拖动的所有 cell 的 index path。
 
 // operation state
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationState2; ///<  当前 table view 的操作状态。
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateNormal;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateModifying;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateChecking;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateDeleting;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchAdding;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchTranslating;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchPanTranslating;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePullAdding;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateRearranging;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateRecovering;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateProcessing;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationState2; ///<  当前 table view 的操作状态。
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateNormal;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateModifying;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateChecking;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateDeleting;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchAdding;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchTranslating;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchPanTranslating;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePullAdding;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateRearranging;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateRecovering;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateProcessing;
 
 #pragma mark adding properties
 @property (nonatomic, weak) LXMTransformableTableViewCell *addingCell;
 @property (nonatomic, strong) NSIndexPath *addingRowIndexPath;
-@property (nonatomic, assign) CGFloat addingRowHeight; ///< 根据 addingProgress 自动计算的高度。
+@property (nonatomic, assign) CGFloat addingRowHeight;
 @property (nonatomic, assign) CGFloat addingProgress; ///< 新增待办项目时的手势操作进度，取值范围 0~1。
 
 + (instancetype)sharedInstance;
 
 - (void)resetState;
 
-- (void)saveTableViewContentOffsetAndInset;
-- (void)recoverTableViewContentOffsetAndInset;
-
-- (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage; ///< 返回动画中或者手势执行时的新增行的行高。
+//- (void)saveTableViewContentOffsetAndInset;
+//- (void)recoverTableViewContentOffsetAndInset;
 
 - (void)startAnimationWithBlock:(void (^__nonnull)())updatingBlock;
 - (void)stopAnimationWithBlock:(void (^__nullable)())endingBlock;

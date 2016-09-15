@@ -43,6 +43,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
 @property (nonatomic, weak) LXMTableViewHelper *tableViewHelper;
 @property (nonatomic, weak) UITableView *tableView;
+@property (nonatomic, weak) LXMTodoList *list;
 @property (nonatomic, strong) NSIndexPath *addingRowIndexPath;
 @property (nonatomic, strong) NSTimer *movingTimer;
 @property (nonatomic, assign) CGFloat scrollingRate;
@@ -55,15 +56,13 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 
 @implementation LXMTableViewGestureRecognizerHelper
 
-- (instancetype)initWithGestureRecognizer:(__weak LXMTableViewGestureRecognizer *)tableViewGestureRecognizer {
+- (instancetype)initWithTableViewGestureRecognizer:(LXMTableViewGestureRecognizer *)tableViewGestureRecognizer tableViewState:(LXMTableViewState *)tableViewState {
 
   if (self = [super init]) {
     self.tableViewGestureRecognizer = tableViewGestureRecognizer;
-    self.tableViewState = [LXMTableViewState sharedInstance];
+    self.tableViewState = tableViewState;
     self.tableView = self.tableViewState.tableView;
     self.scrollingRate = 10;
-    self.globalSettings = [LXMGlobalSettings sharedInstance];
-    self.tableViewHelper = [LXMTableViewHelper sharedInstance];
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
   }
@@ -127,6 +126,25 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 
 #pragma mark - getters
 
+- (LXMGlobalSettings *)globalSettings {
+
+  if (!_globalSettings) {
+    _globalSettings = [LXMGlobalSettings sharedInstance];
+  }
+
+  return _globalSettings;
+}
+
+- (LXMTableViewHelper *)tableViewHelper {
+
+  return self.tableViewGestureRecognizer.tableViewHelper;
+}
+
+- (LXMTodoList *)list {
+
+  return self.tableViewState.list;
+}
+
 - (NSTimeInterval)keyboardAnimationDuration {
 
   return _keyboardAnimationDuration = _keyboardAnimationDuration < 0.01 ? LXMTableViewRowAnimationDurationNormal : _keyboardAnimationDuration;
@@ -172,7 +190,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
     }];
     [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
                                      needsDiscardRowAtIndexPath:indexPath];
-//    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
+//    [self.list.todoItems removeObjectAtIndex:indexPath.row];
     [self.tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationTop];
     [CATransaction commit];
     [UIView commitAnimations];
@@ -248,7 +266,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
                 cell.frame.size.width,
                 finishedRowHeight);
 
-        [self.tableViewState recoverTableViewContentOffsetAndInset];
+        [self.tableViewState.tableViewHelper recoverTableViewContentOffsetAndInset];
 
         for (UITableViewCell *visibleCell in self.tableView.visibleCells) {
           if ([self.tableView indexPathForCell:visibleCell].row > indexPath.row) {
@@ -291,17 +309,24 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 - (NSIndexPath *)addingRowIndexPathForGestureRecognizer:(UIGestureRecognizer *)recognizer {
 
   if ([recognizer isKindOfClass:[UIPinchGestureRecognizer class]]) {
+    // pinch
     return [self p_targetIndexPathForPinchPoints:self.startingPinchPoints];
   } else if ([recognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
-    ;
+    // pull down
+    return self.tableViewState.modifyingRowIndexPath ?
+        [NSIndexPath indexPathForRow:self.tableViewState.modifyingRowIndexPath.row inSection:0] :
+        [NSIndexPath indexPathForRow:0 inSection:0];
   } else if ([recognizer isKindOfClass:[UITapGestureRecognizer class]]) {
-    ;
+    // tap
+    return [NSIndexPath indexPathForRow:self.tableViewState.list.numberOfCompleted inSection:0];
+  } else {
+    // error
+    NSAssert(NO, @"Gesture Recognizer 有问题");
+    return nil;
   }
-
-  return [NSIndexPath indexPathForRow:0 inSection:0];
 }
 
-- (CGFloat)p_pinchDistanceYOfPinchGestureRecognizer:(UIPinchGestureRecognizer *)recognizer {
+- (CGFloat)p_pinchYDistanceOfPinchGestureRecognizer:(UIPinchGestureRecognizer *)recognizer {
 
   LXMPinchPoints pinchPoints = [self p_normalizePinchPointsForPinchGestureRecognizer:recognizer];
   CGFloat distanceInY = (self.startingPinchPoints.upper.y - pinchPoints.upper.y) + (pinchPoints.lower.y - self.startingPinchPoints.lower.y);
@@ -310,9 +335,9 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 
 - (void)updateWithPinchAdding:(UIPinchGestureRecognizer *)recognizer {
 
-  self.tableViewState.addingRowHeight = [self p_pinchDistanceYOfPinchGestureRecognizer:recognizer];
+  self.tableViewState.addingRowHeight = [self p_pinchYDistanceOfPinchGestureRecognizer:recognizer];
   LXMPinchPoints currentPinchPoints = [self p_normalizePinchPointsForPinchGestureRecognizer:recognizer];
-  [LXMTableViewState sharedInstance].addingProgress = [self p_pinchDistanceYOfPinchGestureRecognizer:recognizer] / [LXMGlobalSettings sharedInstance].normalRowHeight;
+  [LXMTableViewState sharedInstance].addingProgress = [self p_pinchYDistanceOfPinchGestureRecognizer:recognizer] / [LXMGlobalSettings sharedInstance].normalRowHeight;
   CGFloat upperDistance = self.startingPinchPoints.upper.y - currentPinchPoints.upper.y;
   self.tableView.contentOffset = CGPointMake(0, self.tableView.contentOffset.y + upperDistance);
 }
@@ -332,6 +357,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
   __weak LXMTableViewGestureRecognizerHelper *weakSelf = self;
   self.animationQueue.queueCompletion = ^(BOOL finished) {
     NSLog(@"100");
+    // TODO: 也有可能是 modifying
     weakSelf.tableViewGestureRecognizer.operationState = weakSelf.tableViewGestureRecognizer.operationStateNormal;
     weakSelf.tableViewState.addingRowIndexPath = nil;
     weakSelf.tableViewState.addingRowHeight = 0;
@@ -469,7 +495,7 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 
   LXMAnimationBlock recoverHeightAnimation = ^(BOOL finished) {
     [self.tableView lxm_updateTableViewWithDuration:LXMTableViewRowAnimationDurationShort updates:^{
-      [self.tableViewState recoverTableViewContentOffsetAndInset];
+      [self.tableViewState.tableViewHelper recoverTableViewContentOffsetAndInset];
       self.tableViewState.addingRowHeight = shouldAdd ? self.tableView.rowHeight : 0;
     } completion:^{
 //      [self.tableView reloadData];
@@ -514,45 +540,6 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
   [self.animationQueue addAnimations:assignRowAnimation, nil];
 }
 
-- (void)bounceRowAtIndex:(NSIndexPath *)indexPath check:(BOOL)shouldCheck {
-
-//  self.tableViewState.operationState = LXMTableViewOperationStateCodeAnimating2;
-//  [self.tableViewGestureRecognizer allowGesturesOnly:LXMTableViewGestureRecognizerOptionsTap |
-//      LXMTableViewGestureRecognizerOptionsHorizontalPan];
-
-//  LXMTableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
-  LXMTableViewCell *cell = self.tableViewState.panningCell;
-  NSIndexPath *destinationIndexPath;
-
-//  [self.tableViewState.bouncingCells insertObject:cell atIndex:0];
-  [self.tableViewState.bouncingIndexPaths insertObject:indexPath atIndex:0];
-
-  if (shouldCheck) {
-    destinationIndexPath = [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer movingDestinationIndexPathForRowAtIndexPath:indexPath];
-  }
-
-  [UIView animateWithDuration:LXMTableViewRowAnimationDurationNormal
-                        delay:0
-       usingSpringWithDamping:0.6
-        initialSpringVelocity:8
-                      options:UIViewAnimationOptionCurveEaseInOut
-                   animations:^{
-                     cell.actualContentView.frame = cell.contentView.frame;
-                     [cell.strikeThroughText setNeedsLayout];
-                   }
-                   completion:^(BOOL finished) {
-                     if (shouldCheck) {
-                       NSIndexPath *indexPath = [self.tableView indexPathForCell:cell];
-                       [self moveRowAtIndexPath:indexPath toIndexPath:destinationIndexPath];
-                     }
-                     [self.tableViewState.bouncingIndexPaths removeLastObject];
-//                     if (self.tableViewState.uneditableIndexPaths.count == 0) {
-                     if (self.tableViewState.uneditableIndexPaths2.count == 0) {
-//                       self.tableViewState.operationState = LXMTableViewOperationStateCodeNormal;
-                       [self.tableViewGestureRecognizer allowAllGestures];
-                     }
-                   }];
-}
 
 - (void)moveRowAtIndexPath:(NSIndexPath *)indexPath toIndexPath:(NSIndexPath *)newIndexPath {
 
@@ -591,21 +578,21 @@ CG_INLINE LXMPanOffsetXParameters LXMPanOffsetXParametersMake(CGFloat n, CGFloat
 //    [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
 //    [CATransaction begin];
 //    [CATransaction setCompletionBlock:^{
-//      LXMTodoItem *tempItem = self.todoList.todoItems[tempTargetIndexPath.row];
-//      [self.todoList.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
-//      [self.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+//      LXMTodoItem *tempItem = self.list.todoItems[tempTargetIndexPath.row];
+//      [self.list.todoItems removeObjectAtIndex:tempTargetIndexPath.row];
+//      [self.list.todoItems insertObject:tempItem atIndex:newIndexPath.row];
 //      completionBlock();
 //    }];
-//    LXMTodoItem *tempItem = self.todoList.todoItems[indexPath.row];
-//    [self.todoList.todoItems removeObjectAtIndex:indexPath.row];
-//    [self.todoList.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
+//    LXMTodoItem *tempItem = self.list.todoItems[indexPath.row];
+//    [self.list.todoItems removeObjectAtIndex:indexPath.row];
+//    [self.list.todoItems insertObject:tempItem atIndex:tempTargetIndexPath.row];
 //    [self.tableView moveRowAtIndexPath:indexPath toIndexPath:tempTargetIndexPath];
 //    [CATransaction commit];
 //    [UIView commitAnimations];
 //  } else {
-  LXMTodoItem *tempItem = self.tableViewHelper.todoList.todoItems[indexPath.row];
-  [self.tableViewHelper.todoList.todoItems removeObjectAtIndex:indexPath.row];
-  [self.tableViewHelper.todoList.todoItems insertObject:tempItem atIndex:newIndexPath.row];
+  LXMTodoItem *tempItem = self.list.todoItems[indexPath.row];
+  [self.list.todoItems removeObjectAtIndex:indexPath.row];
+  [self.list.todoItems insertObject:tempItem atIndex:newIndexPath.row];
   [UIView beginAnimations:nil context:nil];
   [UIView setAnimationDuration:LXMTableViewRowAnimationDurationNormal];
   [CATransaction begin];

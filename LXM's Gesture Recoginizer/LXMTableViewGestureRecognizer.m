@@ -13,6 +13,7 @@
 #import "LXMTransformableTableViewCell.h"
 #import "LXMTodoList.h"
 #import "LXMTableViewOperationState.h"
+#import "LXMTableViewHelper.h"
 #import <pop/POP.h>
 
 typedef struct {
@@ -84,12 +85,12 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 + (instancetype)gestureRecognizerWithTableView:(UITableView *)tableView delegate:(id)delegate {
   LXMTableViewGestureRecognizer *recognizer = [LXMTableViewGestureRecognizer new];
   recognizer.delegate = delegate;
-  recognizer.tableView = tableView;
-  recognizer.tableViewState = [LXMTableViewState sharedInstance];
-  recognizer.tableViewDelegate = tableView.delegate;
+//  recognizer.tableView = tableView;
+//  recognizer.tableViewState = [LXMTableViewState sharedInstance];
+//  recognizer.tableViewDelegate = tableView.delegate;
   recognizer.operationStates = [[NSMutableArray alloc] initWithCapacity:10];
   [recognizer allowAllGestures];
-  tableView.delegate = recognizer;
+//  tableView.delegate = recognizer;
 
   [recognizer configureGestureRecognizers];
 //  [recognizer adjustTableViewFrame];
@@ -97,9 +98,25 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   return recognizer;
 }
 
+//- (instancetype)init {
+//
+//  if (self = [super init]) {
+//    self.delegate = self.tableViewState.viewController;
+//    self.operationStates = [[NSMutableArray alloc] initWithCapacity:10];
+//    [self configureGestureRecognizers];
+//    [self allowAllGestures];
+//
+//    // TODO: helper assign each other
+//    // GRHelper.TVHelper = TVhelper
+//    // TVHelper.GRHelper = GRHelper
+//  }
+//
+//  return self;
+//}
+
 - (void)dealloc {
 
-  [[NSNotificationCenter defaultCenter] removeObserver:self.panRecognizer];
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 #pragma mark - Init Helper Methods
@@ -122,21 +139,19 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   self.panRecognizer.delegate = self;
   [self.tableView addGestureRecognizer:self.panRecognizer];
 
-  // 注册响应操作完成的通知，将相关状态值设置为初始值。
-  [[NSNotificationCenter defaultCenter]
-   addObserverForName:LXMOperationCompleteNotification
-   object:nil
-   queue:nil
-   usingBlock:^(NSNotification * _Nonnull note) {
-//     [LXMTableViewState sharedInstance].operationState = LXMTableViewOperationStateCodeNormal;
-     self.state = LXMTableViewGestureRecognizerStateNone;
-   }];
-
   //long press recognizer
   UILongPressGestureRecognizer *longPressRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
   longPressRecognizer.delegate = self;
   self.longPressRecognizer = longPressRecognizer;
   [self.tableView addGestureRecognizer:self.longPressRecognizer];
+
+  // 注册响应操作完成的通知，将相关状态值设置为初始值。
+  [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleFinishNotification:) name:LXMOperationCompleteNotification object:nil];
+}
+
+- (void)handleFinishNotification:(NSNotification *)notification {
+
+  self.state = LXMTableViewGestureRecognizerStateNone;
 }
 
 - (void)adjustTableViewFrame {
@@ -166,7 +181,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 #pragma mark - setters
 
-- (void)setOperationState:(id <LXMTableViewOperationStateProtocol>)operationState {
+- (void)setOperationState:(id <LXMTableViewOperationState>)operationState {
 
   _operationState = operationState;
 
@@ -183,16 +198,52 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 #pragma mark - getters
 
-- (LXMTableViewGestureRecognizerHelper *)helper {
+- (LXMTableViewState *)tableViewState {
 
-  if (!_helper) {
-    _helper = [[LXMTableViewGestureRecognizerHelper alloc] initWithGestureRecognizer:self];
+  if(!_tableViewState) {
+    _tableViewState = [LXMTableViewState sharedInstance];
   }
 
-  return _helper;
+  return _tableViewState;
 }
 
-- (id <LXMTableViewOperationStateProtocol>)operationState {
+- (id <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate>)delegate {
+
+  _delegate = self.tableViewState.viewController;
+  return _delegate;
+}
+
+- (id)tableViewDelegate {
+
+  _tableViewDelegate = self.tableViewState.tableViewDelegate;
+  return _tableViewDelegate;
+}
+
+- (UITableView *)tableView {
+
+  _tableView = self.tableViewState.tableView;
+  return _tableView;
+}
+
+- (LXMTableViewHelper *)tableViewHelper {
+
+  if (!_tableViewHelper) {
+    _tableViewHelper = [[LXMTableViewHelper alloc] initWithTableViewGestureRecognizer:self tableViewState:self.tableViewState];
+  }
+
+  return _tableViewHelper;
+}
+
+- (LXMTableViewGestureRecognizerHelper *)recognizerHelper {
+
+  if (!_recognizerHelper) {
+    _recognizerHelper = [[LXMTableViewGestureRecognizerHelper alloc] initWithTableViewGestureRecognizer:self tableViewState:self.tableViewState];
+  }
+
+  return _recognizerHelper;
+}
+
+- (id <LXMTableViewOperationState>)operationState {
 
   if (!_operationState) {
      _operationState = self.operationStateNormal;
@@ -201,7 +252,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   return _operationState;
 }
 
-- (id <LXMTableViewOperationStateProtocol>)operationStateNormal {
+- (id <LXMTableViewOperationState>)operationStateNormal {
 
   if (!_operationStateNormal) {
     _operationStateNormal = [LXMTableViewOperationState operationStateWithTableViewGestureRecognizer:self operationStateCode:LXMTableViewOperationStateCodeNormal];
@@ -210,7 +261,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   return _operationStateNormal;
 }
 
-- (id <LXMTableViewOperationStateProtocol>)operationStateModifying {
+- (id <LXMTableViewOperationState>)operationStateModifying {
 
   if (!_operationStateModifying) {
     _operationStateModifying = [LXMTableViewOperationState operationStateWithTableViewGestureRecognizer:self operationStateCode:LXMTableViewOperationStateCodeModifying];
@@ -219,7 +270,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   return _operationStateModifying;
 }
 
-- (id <LXMTableViewOperationStateProtocol>)operationStatePinchAdding {
+- (id <LXMTableViewOperationState>)operationStatePinchAdding {
 
   if (!_operationStatePinchAdding) {
     _operationStatePinchAdding = [LXMTableViewOperationState operationStateWithTableViewGestureRecognizer:self operationStateCode:LXMTableViewOperationStateCodePinchAdding];
@@ -228,7 +279,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   return _operationStatePinchAdding;
 }
 
-- (id <LXMTableViewOperationStateProtocol>)operationStateRecovering{
+- (id <LXMTableViewOperationState>)operationStateRecovering{
 
   if (!_operationStateRecovering) {
     _operationStateRecovering = [LXMTableViewOperationState operationStateWithTableViewGestureRecognizer:self operationStateCode:LXMTableViewOperationStateCodeRecovering];
@@ -526,7 +577,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
   if (recognizer == self.tapRecognizer && [self isGesturesAllowed:LXMTableViewGestureRecognizerOptionsTap]) {
     // Tap
-    [self.helper collectStartingInformation:recognizer];
+    [self.recognizerHelper collectStartingInformation:recognizer];
     return YES;
   } else if (recognizer == self.pinchRecognizer && [self isGesturesAllowed:LXMTableViewGestureRecognizerOptionsPinch]) {
     // Pinch
@@ -544,7 +595,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
         [self.delegate gestureRecognizer:self willCreateCellAtIndexPath:self.tableViewState.addingRowIndexPath];
       }
 
-      [self.helper collectStartingInformation:recognizer];
+      [self.recognizerHelper collectStartingInformation:recognizer];
       return YES;
     }
   } else if (recognizer == self.panRecognizer && [self isGesturesAllowed:LXMTableViewGestureRecognizerOptionsHorizontalPan]) {
@@ -577,12 +628,12 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
       return NO;
     }
 
-    [self.helper collectStartingInformation:recognizer];
+    [self.recognizerHelper collectStartingInformation:recognizer];
     return YES;
 
   } else if (recognizer == self.longPressRecognizer && [self isGesturesAllowed:LXMTableViewGestureRecognizerOptionsLongPress]) {
     // TODO: longPressRecognizer
-    [self.helper collectStartingInformation:recognizer];
+    [self.recognizerHelper collectStartingInformation:recognizer];
     return YES;
   } else {
     return NO;
@@ -671,7 +722,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 //    if ([cell isMemberOfClass:[LXMTableViewCell class]] && !cell.todoItem.isCompleted) {
 //      [cell.strikeThroughText becomeFirstResponder];
 //    } else {
-//      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:[LXMTableViewState sharedInstance].todoList.numberOfUncompleted inSection:0];
+//      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:[LXMTableViewState sharedInstance].list.numberOfUncompleted inSection:0];
 //      [LXMTableViewState sharedInstance].addingRowHeight = 0;
 //      [self.delegate gestureRecognizer:self needsAddRowAtIndexPath:[LXMTableViewState sharedInstance].addingRowIndexPath usage:LXMTodoItemUsageTapAdded];
 //    }
@@ -968,14 +1019,14 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
     rowHeight = [self.tableViewDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)] ? [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath] : self.tableView.rowHeight;
   }
 
-  if (indexPath.section == 1) {
-    rowHeight = [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath];
-  }
+//  if (indexPath.section == 1) {
+//    rowHeight = [self.tableViewDelegate tableView:tableView heightForRowAtIndexPath:indexPath];
+//  }
 
   return rowHeight;
 }
 
-#pragma mark - LXMTableViewCellDelegate
+  #pragma mark - LXMTableViewCellDelegate
 
 - (BOOL)tableViewCellShouldBeginTextEditing:(LXMTableViewCell *)cell {
 
@@ -985,32 +1036,33 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 - (void)tableViewCellDidBeginTextEditing:(LXMTableViewCell *)cell {
 
   cell.isModifying = YES;
-
+  self.tableView.bounces = NO;
   self.tableViewState.modifyingRowIndexPath = [self.tableView indexPathForCell:cell];
-  [self.tableViewState saveTableViewContentOffsetAndInset];
-//  self.tableViewState.operationState = LXMTableViewOperationStateCodeModifying;
+  [self.tableViewState.tableViewHelper saveTableViewContentOffsetAndInset];
+
 //  [self allowGesturesOnly:LXMTableViewGestureRecognizerOptionsTap | LXMTableViewGestureRecognizerOptionsVerticalPan];
 
-//   重要：如不设置 contentInset.bottom，当点击屏幕上最后几个 cell 时会出现意想不到的情况。
-  self.tableView.contentInset =
-      UIEdgeInsetsMake(self.tableView.contentInset.top,
-          self.tableView.contentInset.left,
-          self.tableView.contentInset.bottom + self.tableView.bounds.size.height - self.tableView.rowHeight,
-          self.tableView.contentInset.right);
-
-  [UIView animateWithDuration:self.helper.keyboardAnimationDuration delay:0 options:self.helper.keyboardAnimationCurveOption animations:^{
+  [UIView animateWithDuration:self.recognizerHelper.keyboardAnimationDuration delay:0 options:self.recognizerHelper.keyboardAnimationCurveOption animations:^{
+    //   重要：如不设置 contentInset.bottom，当点击屏幕上最后几个 cell 时会出现意想不到的情况。
+//    self.tableView.contentInset = UIEdgeInsetsMake(
+//      self.tableView.contentInset.top,
+//      self.tableView.contentInset.left,
+//      self.tableView.contentInset.bottom + self.tableView.bounds.size.height - self.tableView.rowHeight,
+//      self.tableView.contentInset.right);
+//    [self.tableView scrollToRowAtIndexPath:self.tableViewState.modifyingRowIndexPath atScrollPosition:UITableViewScrollPositionTop animated:NO];
     self.tableView.contentOffset =
-        (CGPoint){self.tableView.contentOffset.x, cell.frame.origin.y - self.tableView.contentInset.top};
+      (CGPoint){self.tableView.contentOffset.x, cell.frame.origin.y - self.tableView.contentInset.top};
+    self.tableView.contentOffset =
+      (CGPoint){self.tableView.contentOffset.x, cell.frame.origin.y - self.tableView.contentInset.top};
     for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
       if (cell != visibleCell) {
         visibleCell.alpha = 0.3;
       }
     }
   } completion:^(BOOL finished){
-    self.tableView.scrollEnabled = NO;
-    self.tableView.bounces = NO;
-//    [self.operationState shouldChangeToOperationState:self.operationStateModifying];
-    self.operationState = self.operationStateModifying;
+//    self.tableView.scrollEnabled = NO;
+//    self.tableView.bounces = NO;
+    [self.operationState switchToOperationState:self.operationStateModifying];
   }];
 }
 
@@ -1021,27 +1073,25 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
 
 - (void)tableViewCellDidEndTextEditing:(LXMTableViewCell *)cell {
 
-  [UIView animateWithDuration:self.helper.keyboardAnimationDuration delay:0 options:self.helper.keyboardAnimationCurveOption animations:^{
+  [UIView animateWithDuration:self.recognizerHelper.keyboardAnimationDuration delay:0 options:self.recognizerHelper.keyboardAnimationCurveOption animations:^{
     for (LXMTableViewCell *visibleCell in self.tableView.visibleCells) {
       if (cell != visibleCell) {
         visibleCell.alpha = 1.0f;
       }
     }
-    [self.tableViewState recoverTableViewContentOffsetAndInset];
+    [self.tableViewState.tableViewHelper recoverTableViewContentOffsetAndInset];
   } completion:^(BOOL finished) {
-    self.operationState = self.operationStateNormal;
-    self.tableView.scrollEnabled = YES;
-    self.tableView.bounces = YES;
-    cell.isModifying = NO;
-    self.tableViewState.modifyingRowIndexPath = nil;
-    [self.operationState shouldChangeToOperationState:self.operationStateNormal];
-
     if ([cell.strikeThroughText.text isEqualToString:@""]) {
-      [self.helper deleteRowAtIndexPath:[self.tableView indexPathForCell:cell]];
+      [self.recognizerHelper deleteRowAtIndexPath:self.tableViewState.modifyingRowIndexPath];
     } else {
       [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
       [self.tableView reloadData];
     }
+    self.tableView.scrollEnabled = YES;
+    self.tableView.bounces = YES;
+    cell.isModifying = NO;
+    self.tableViewState.modifyingRowIndexPath = nil;
+    [self.operationState switchToOperationState:self.operationStateNormal];
   }];
 }
 
@@ -1058,9 +1108,7 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   [CATransaction begin];
   [CATransaction setCompletionBlock:completion];
   [self beginUpdates];
-  if (updates) {
-    updates();
-  }
+  if (updates) updates();
   [self endUpdates];
   [CATransaction commit];
   [UIView commitAnimations];
@@ -1085,6 +1133,14 @@ CGFloat const kScrollingRate = 10.0f; ///< 当长按拖动 todo 并移动到 tab
   [UIView performWithoutAnimation:^{
     [self reloadRowsAtIndexPaths:visibleIndexPaths withRowAnimation:UITableViewRowAnimationNone];
   }];
+}
+
+- (void)setContentInset:(UIEdgeInsets)contentInset {
+
+  [super setContentInset:contentInset];
+  if (contentInset.bottom < -10) {
+    NSLog(@"wrong");
+  }
 }
 
 @end

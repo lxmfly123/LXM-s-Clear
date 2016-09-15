@@ -8,6 +8,9 @@
 
 #import "LXMTableViewState.h"
 #import "LXMGlobalSettings.h"
+#import "LXMTableViewGestureRecognizer.h"
+#import "LXMTableViewGestureRecognizerHelper.h"
+#import "LXMTableViewHelper.h"
 
 NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
@@ -18,8 +21,6 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
 // private
 @property (nonatomic, weak) LXMGlobalSettings *globalSettings;
-@property (nonatomic, assign) CGPoint lastContentOffset;
-@property (nonatomic, assign) UIEdgeInsets lastContentInset;
 
 @property (nonatomic, strong) CADisplayLink *displayLink; ///< 用于某些动画需要随动画进行更新某些值时的计算。
 @property (nonatomic, copy, nullable) void (^updatingBlock)(); ///< 动画需要随动画进行更新某些值时的计算块。
@@ -34,11 +35,11 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 - (instancetype)init {
   
   if (self = [super init]) {
+    // TODO:  这些属性最终应写成 getter
     self.floatingCells = [[NSMutableArray alloc] initWithCapacity:4];
     self.bouncingCells = [[NSMutableArray alloc] initWithCapacity:2];
     self.floatingIndexPaths = [[NSMutableArray alloc] initWithCapacity:4];
     self.bouncingIndexPaths = [[NSMutableArray alloc] initWithCapacity:2];
-    self.globalSettings = [LXMGlobalSettings sharedInstance];
   }
 
   return self;
@@ -57,6 +58,51 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 
 #pragma mark - getters
 
+- (LXMGlobalSettings *)globalSettings {
+
+  if (!_globalSettings) {
+    _globalSettings = [LXMGlobalSettings sharedInstance];
+  }
+
+  return _globalSettings;
+}
+
+- (LXMTableViewGestureRecognizerHelper *)tableViewGestureRecognizer {
+
+  if (!_tableViewGestureRecognizer) {
+    NSAssert(self.tableView, @"No Table View Found...");
+    NSAssert(self.viewController, @"No Available Delegate Found...");
+    _tableViewGestureRecognizer = [LXMTableViewGestureRecognizer gestureRecognizerWithTableView:self.tableView delegate:self.viewController];
+  }
+
+  if (self.tableView.delegate != _tableViewGestureRecognizer) {
+    self.tableViewDelegate = self.tableView.delegate;
+    self.tableView.delegate = _tableViewGestureRecognizer;
+  }
+
+  return _tableViewGestureRecognizer;
+}
+
+- (LXMTableViewGestureRecognizerHelper *)recognizerHelper {
+
+  return self.tableViewGestureRecognizer.recognizerHelper;
+}
+
+- (LXMTableViewHelper *)tableViewHelper {
+
+  return self.tableViewGestureRecognizer.tableViewHelper;
+}
+
+- (LXMTableViewCell *)panningCell {
+
+  return [self.tableView cellForRowAtIndexPath:self.panningRowIndexPath];
+}
+
+- (LXMTableViewCell *)rearrangingCell {
+
+  return [self.tableView cellForRowAtIndexPath:self.rearrangingRowIndexPath];
+}
+
 - (NSArray<NSIndexPath *> *)uneditableIndexPaths2 {
 
   NSMutableArray *tempArray = [NSMutableArray arrayWithArray:_bouncingIndexPaths];
@@ -65,6 +111,7 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   return _uneditableIndexPaths;
 }
 
+/// Has Been Depericated!
 - (NSArray<NSIndexPath *> *)uneditableIndexPaths {
   
   NSMutableArray *tempArray = [[NSMutableArray alloc] initWithArray:self.bouncingCells];
@@ -81,54 +128,13 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
   return _uneditableIndexPaths;
 }
 
-
-- (CGFloat)rowHeightForUsage:(LXMTodoItemUsage)usage {
-
-  CGFloat static rowHeight = 0;
-
-  switch (usage) {
-    case LXMTodoItemUsageTapAdded:
-    case LXMTodoItemUsagePullAdded:
-      rowHeight = CGRectGetHeight(self.flippingAssistView.frame);
-      break;
-
-    case LXMTodoItemUsagePinchAdded:
-      rowHeight = CGRectGetHeight(self.unfoldingAssistView.frame) * 2;
-      break;
-
-    case LXMTodoItemUsageNormal:
-    case LXMTodoItemUsagePlaceholder:
-      break;
-
-    default:
-      break;
-  }
-
-  return rowHeight;
-}
-
 #pragma mark - setters
 
-- (void)setPanningRowIndexPath:(NSIndexPath *)panningRowIndexPath {
+- (void)setTableView:(UITableView *)tableView {
 
-  _panningRowIndexPath = panningRowIndexPath;
+  NSAssert(self.viewController, @"No View Controller Found...");
 
-  if (panningRowIndexPath) {
-    _panningCell = [self.tableView cellForRowAtIndexPath:panningRowIndexPath];
-  } else {
-    _panningCell = nil;
-  }
-}
-
-- (void)setRearrangingRowIndexPath:(NSIndexPath *)rearrangingRowIndexPath {
-
-  _rearrangingRowIndexPath = rearrangingRowIndexPath;
-
-  if (rearrangingRowIndexPath) {
-    _rearrangingCell = [self.tableView cellForRowAtIndexPath:rearrangingRowIndexPath];
-  } else {
-    _rearrangingCell = nil;
-  }
+  _tableView = tableView;
 }
 
 #pragma mark - display link
@@ -167,26 +173,24 @@ NSString * const LXMOperationCompleteNotification = @"OperationComplete";
 #pragma mark - public methods
 
 - (void)resetState {
-  
-  self.tableView = nil;
-//  panningCell = nil;
-  [self.bouncingCells removeAllObjects];
-  [self.floatingCells removeAllObjects];
+
+  [self.bouncingIndexPaths removeAllObjects];
+  [self.floatingIndexPaths removeAllObjects];
 }
 
-- (void)saveTableViewContentOffsetAndInset {
-
-  self.lastContentOffset = self.tableView.contentOffset;
-  self.lastContentInset = self.tableView.contentInset;
-}
-
-- (void)recoverTableViewContentOffsetAndInset {
-
-  self.tableView.contentOffset = self.lastContentOffset;
-  self.tableView.contentInset = self.lastContentInset;
-
-  self.lastContentOffset = CGPointZero;
-  self.lastContentInset = UIEdgeInsetsZero;
-}
+//- (void)saveTableViewContentOffsetAndInset {
+//
+//  self.lastContentOffset = self.tableView.contentOffset;
+//  self.lastContentInset = self.tableView.contentInset;
+//}
+//
+//- (void)recoverTableViewContentOffsetAndInset {
+//
+//  self.tableView.contentOffset = self.lastContentOffset;
+//  self.tableView.contentInset = self.lastContentInset;
+//
+//  self.lastContentOffset = CGPointZero;
+//  self.lastContentInset = UIEdgeInsetsZero;
+//}
 
 @end

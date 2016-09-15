@@ -23,7 +23,7 @@ typedef NS_ENUM(NSUInteger, LXMTableViewOperationStateCode) {
   LXMTableViewOperationStateCodeProcessing,     ///< 正在执行某些操作完成后的动画，但允许某些交互。
 };
 
-@protocol LXMTableViewOperationStateProtocol
+@protocol LXMTableViewOperationState
 
 - (void)handlePinch:(UIPinchGestureRecognizer *)recognizer;
 - (void)handlePan:(UIPanGestureRecognizer *)recognizer;
@@ -33,12 +33,12 @@ typedef NS_ENUM(NSUInteger, LXMTableViewOperationStateCode) {
 
 @optional
 
-- (void)shouldChangeToOperationState:(id<LXMTableViewOperationStateProtocol>)operationState; ///< 应该有一个方法，能够在上一个状态完成后，跳转到下一个状态。
+- (void)switchToOperationState:(id <LXMTableViewOperationState>)operationState; ///< 应该有一个方法，能够在上一个状态完成后，跳转到下一个状态。
 
 @end
 
 
-@interface LXMTableViewOperationState<LXMTableViewOperationStateProtocol> : NSObject
+@interface LXMTableViewOperationState : NSObject <LXMTableViewOperationState>
 
 @property (nonatomic, weak) UITableView *tableView;
 @property (nonatomic, weak) LXMTableViewState *tableViewState;

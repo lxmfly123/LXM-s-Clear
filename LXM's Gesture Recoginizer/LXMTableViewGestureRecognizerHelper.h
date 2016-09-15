@@ -8,6 +8,7 @@
 #import "LXMGlobalSettings.h"
 
 @class LXMTableViewGestureRecognizer;
+@class LXMTableViewState;
 
 @interface LXMTableViewGestureRecognizerHelper : NSObject
 
@@ -17,10 +18,14 @@
 @property (nonatomic, assign, readonly) NSTimeInterval keyboardAnimationDuration;
 @property (nonatomic, assign, readonly) UIViewAnimationOptions keyboardAnimationCurveOption;
 
-- (instancetype)initWithGestureRecognizer:(__weak LXMTableViewGestureRecognizer *)tableViewGestureRecognizer;
+- (instancetype)initWithTableViewGestureRecognizer:(LXMTableViewGestureRecognizer *)tableViewGestureRecognizer tableViewState:(LXMTableViewState *)tableViewState;
 
 - (void)collectStartingInformation:(UIGestureRecognizer *)recognizer;
+
+// add row helper methods
 - (NSIndexPath *)addingRowIndexPathForGestureRecognizer:(UIGestureRecognizer *)recognizer;
+
+
 - (CGFloat)panOffsetX:(UIPanGestureRecognizer *)recognizer;
 - (void)prepareForRearrange:(UILongPressGestureRecognizer *)recognizer;
 - (void)updateAddingIndexPathForCurrentLocation:(UILongPressGestureRecognizer *)recognizer;

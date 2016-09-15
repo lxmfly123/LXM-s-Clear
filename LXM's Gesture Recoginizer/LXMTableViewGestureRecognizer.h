@@ -63,7 +63,7 @@ typedef NS_ENUM(NSUInteger, LXMTableViewGestureRecognizerState) {
 - (BOOL)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer canEditRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didEnterEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
 - (void)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didCommitEditingState:(LXMTableViewCellEditingState)editingState forRowAtIndexPath:(NSIndexPath *)indexPath;
-- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath;
+//- (NSIndexPath *)gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer movingDestinationIndexPathForRowAtIndexPath:(NSIndexPath *)indexPath;
 
 @optional
 // use cell directly
@@ -92,7 +92,9 @@ gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didChangeContentVi
 
 @interface LXMTableViewGestureRecognizer : NSObject <UITableViewDelegate, LXMTableViewCellDelegate>
 
-@property (nonatomic, strong) LXMTableViewGestureRecognizerHelper *helper;
+@property (nonatomic, strong) LXMTableViewGestureRecognizerHelper *recognizerHelper;
+@property (nonatomic, strong) LXMTableViewHelper *tableViewHelper;
+
 @property (nonatomic, weak, readonly) UITableView *tableView;
 @property (nonatomic, assign, readonly) LXMTableViewGestureRecognizerState state;
 @property (nonatomic, assign, readonly) LXMTableViewGestureRecognizerState previousState;
@@ -100,18 +102,18 @@ gestureRecognizer:(LXMTableViewGestureRecognizer *)recognizer didChangeContentVi
 @property (nonatomic, weak) id <LXMTableViewGestureAddingRowDelegate, LXMTableViewGestureEditingRowDelegate, LXMTableViewGestureMoveRowDelegate> delegate;
 
 // operation state
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationState; ///<  当前 table view 的操作状态。
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateNormal;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateModifying;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateChecking;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateDeleting;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchAdding;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchTranslating;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePinchPanTranslating;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStatePullAdding;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateRearranging;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateRecovering;
-@property (nonatomic, strong) id <LXMTableViewOperationStateProtocol> operationStateProcessing;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationState; ///<  当前 table view 的操作状态。
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateNormal;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateModifying;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateChecking;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateDeleting;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchAdding;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchTranslating;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePinchPanTranslating;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStatePullAdding;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateRearranging;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateRecovering;
+@property (nonatomic, strong) id <LXMTableViewOperationState> operationStateProcessing;
 
 + (instancetype)gestureRecognizerWithTableView:(UITableView *)tableView delegate:(id)delegate;
 

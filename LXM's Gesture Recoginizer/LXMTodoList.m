@@ -47,6 +47,7 @@
   NSUInteger number = 0;
   for (LXMTodoItem *todoItem in self.todoItems) {
     if (!todoItem.isCompleted) {
+      if (todoItem.usage == LXMTodoItemUsageNormal)
       number++;
     } else {
       break;
@@ -58,7 +59,17 @@
 
 - (NSUInteger)numberOfCompleted {
 
-  return self.todoItems.count - self.numberOfUncompleted;
+  NSUInteger number = 0;
+  for (LXMTodoItem *todoItem in self.todoItems) {
+    if (todoItem.isCompleted) {
+      if (todoItem.usage == LXMTodoItemUsageNormal)
+        number++;
+    } else {
+      break;
+    }
+  }
+
+  return number;
 }
 
 @end

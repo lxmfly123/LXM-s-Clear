@@ -6,6 +6,7 @@
 #import "LXMTableViewOperationState.h"
 #import "LXMTableViewState.h"
 #import "LXMTableViewGestureRecognizer.h"
+#import "LXMTableViewHelper.h"
 #import "LXMTodoItem.h"
 #import "LXMTodoList.h"
 
@@ -17,7 +18,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 }
 
 /// Normal Operation State
-@interface LXMTableViewOperationStateNormal <LXMTableViewOperationStateProtocol> : LXMTableViewOperationState
+@interface LXMTableViewOperationStateNormal : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateNormal
@@ -26,11 +27,11 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
   if (recognizer.state == UIGestureRecognizerStateBegan) {
 
-    self.tableViewState.addingRowIndexPath = [self.tableViewGestureRecognizer.helper addingRowIndexPathForGestureRecognizer:recognizer];
+    self.tableViewState.addingRowIndexPath = [self.tableViewGestureRecognizer.recognizerHelper addingRowIndexPathForGestureRecognizer:recognizer];
     self.tableViewState.addingRowHeight = 0;
     NSAssert(self.tableViewState.addingRowIndexPath != nil, @"addingRowIndexPath 不能为 nil。");
 
-    [self.tableViewState saveTableViewContentOffsetAndInset];
+    [self.tableViewState.tableViewHelper saveTableViewContentOffsetAndInset];
 
     self.tableView.contentInset =
         UIEdgeInsetsMake(self.tableView.contentInset.top + self.tableView.bounds.size.height,
@@ -59,7 +60,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
   if (recognizer.state == UIGestureRecognizerStateBegan) {
     self.tableViewState.panningRowIndexPath = [self.tableView indexPathForRowAtPoint:[recognizer locationInView:self.tableView]];
   } else if (recognizer.state == UIGestureRecognizerStateChanged) {
-    CGFloat offsetX = [self.tableViewGestureRecognizer.helper panOffsetX:recognizer];
+    CGFloat offsetX = [self.tableViewGestureRecognizer.recognizerHelper panOffsetX:recognizer];
     self.tableViewState.panningCell.actualContentView.frame = CGRectOffset(self.tableViewState.panningCell.contentView.bounds, offsetX, 0);
     [self.tableViewState.panningCell setNeedsLayout];
 
@@ -110,13 +111,13 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:indexPath];
     UIGraphicsBeginImageContextWithOptions(cell.bounds.size, NO, 0);
     [cell.layer renderInContext:UIGraphicsGetCurrentContext()];
-    self.tableViewGestureRecognizer.helper.snapshot = UIGraphicsGetImageFromCurrentImageContext();
+    self.tableViewGestureRecognizer.recognizerHelper.snapshot = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
 
     // 将位图快照作为 UIImageView 覆盖显示在拖动 cell 的位置上。
     UIImageView *snapshotView = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
     if (!snapshotView) {
-      snapshotView = [[UIImageView alloc] initWithImage:self.tableViewGestureRecognizer.helper.snapshot];
+      snapshotView = [[UIImageView alloc] initWithImage:self.tableViewGestureRecognizer.recognizerHelper.snapshot];
       snapshotView.tag = CELL_SNAPSHOT_TAG;
       [self.tableView addSubview:snapshotView];
       snapshotView.frame = [self.tableView rectForRowAtIndexPath:indexPath];
@@ -136,7 +137,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     self.tableViewState.addingRowIndexPath = indexPath;
     [self.tableView endUpdates];
 
-    [self.tableViewGestureRecognizer.helper prepareForRearrange:recognizer];
+    [self.tableViewGestureRecognizer.recognizerHelper prepareForRearrange:recognizer];
 
     self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateRearranging;
   } else if (recognizer.state == UIGestureRecognizerStateChanged) {
@@ -156,9 +157,9 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
     if ([cell isMemberOfClass:[LXMTableViewCell class]] && !cell.todoItem.isCompleted) {
       [cell.strikeThroughText becomeFirstResponder];
-      self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateRecovering;
+      [self.tableViewGestureRecognizer.operationState switchToOperationState:self.tableViewGestureRecognizer.operationStateRecovering];
     } else {
-      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:[LXMTableViewState sharedInstance].todoList.numberOfUncompleted inSection:0];
+      [LXMTableViewState sharedInstance].addingRowIndexPath = [NSIndexPath indexPathForRow:[LXMTableViewState sharedInstance].list.numberOfUncompleted inSection:0];
       [LXMTableViewState sharedInstance].addingRowHeight = 0;
       [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
                                            needsAddRowAtIndexPath:self.tableViewState.addingRowIndexPath
@@ -182,7 +183,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Modifying Operation State
-@interface LXMTableViewOperationStateModifying <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStateModifying: LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateModifying
@@ -195,7 +196,8 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 - (void)handleTap:(UITapGestureRecognizer *)recognizer {
 
-  if (recognizer.state == UIGestureRecognizerStateEnded) {
+  if (recognizer.state == UIGestureRecognizerStateEnded &&
+    [self.tableView indexPathForRowAtPoint:[recognizer locationInView:self.tableView]] != self.tableViewState.modifyingRowIndexPath) {
     [self.tableView endEditing:YES];
   }
 }
@@ -206,7 +208,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Checking Operation State
-@interface LXMTableViewOperationStateChecking <LXMTableViewOperationStateProtocol>: LXMTableViewOperationStateNormal
+@interface LXMTableViewOperationStateChecking : LXMTableViewOperationStateNormal <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateChecking
@@ -229,7 +231,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Deleting Operation State
-@interface LXMTableViewOperationStateDeleting <LXMTableViewOperationStateProtocol>: LXMTableViewOperationStateNormal
+@interface LXMTableViewOperationStateDeleting : LXMTableViewOperationStateNormal <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateDeleting
@@ -256,7 +258,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Pinch Adding Operation State
-@interface LXMTableViewOperationStatePinchAdding <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStatePinchAdding : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStatePinchAdding
@@ -266,7 +268,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
   if (recognizer.state == UIGestureRecognizerStateBegan) {
     NSAssert(NO, assertFailure(@"pinch adding", @"pinch", @"began"));
   } else if (recognizer.state == UIGestureRecognizerStateChanged && recognizer.numberOfTouches >= 2) {
-    [self.tableViewGestureRecognizer.helper updateWithPinchAdding:recognizer];
+    [self.tableViewGestureRecognizer.recognizerHelper updateWithPinchAdding:recognizer];
     if ([self.tableViewGestureRecognizer.delegate respondsToSelector:@selector(gestureRecognizer:isAddingRowAtIndexPath:)]) {
       [self.tableViewGestureRecognizer.delegate gestureRecognizer:self.tableViewGestureRecognizer
                                            isAddingRowAtIndexPath:self.tableViewState.addingRowIndexPath];
@@ -279,7 +281,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     }];
   } else if (recognizer.state == UIGestureRecognizerStateEnded) {
     if ([LXMTableViewState sharedInstance].addingRowIndexPath) {
-      [self.tableViewGestureRecognizer.helper commitOrDiscardRow];
+      [self.tableViewGestureRecognizer.recognizerHelper commitOrDiscardRow];
       self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateRecovering;
     } else {
       self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateNormal;
@@ -295,7 +297,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Pinch Translating Operation State
-@interface LXMTableViewOperationStatePinchTranslating <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStatePinchTranslating : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStatePinchTranslating
@@ -310,7 +312,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Pan Translating Operation State
-@interface LXMTableViewOperationStatePanTranslating <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStatePanTranslating : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStatePanTranslating
@@ -325,7 +327,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Pull Adding Translating Operation State
-@interface LXMTableViewOperationStatePullAdding <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStatePullAdding : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStatePullAdding
@@ -351,7 +353,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Rearranging Operation State
-@interface LXMTableViewOperationStateRearranging <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStateRearranging : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateRearranging
@@ -367,16 +369,16 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
     NSAssert(NO, assertFailure(@"rearranging", @"longpress", @"began"));
   } else if (recognizer.state == UIGestureRecognizerStateChanged) {
     // 随手指移动 cell 快照，当移动到 table view 顶部或者底部时，滚动 table view。
-    self.tableViewGestureRecognizer.helper.snapShotView.center = CGPointMake(self.tableView.center.x, location.y);
+    self.tableViewGestureRecognizer.recognizerHelper.snapShotView.center = CGPointMake(self.tableView.center.x, location.y);
 
-    [self.tableViewGestureRecognizer.helper updateAddingIndexPathForCurrentLocation:recognizer];
+    [self.tableViewGestureRecognizer.recognizerHelper updateAddingIndexPathForCurrentLocation:recognizer];
 
   } else if (recognizer.state == UIGestureRecognizerStateEnded) {
     __weak __block UIImageView *snapshotView = [self.tableView viewWithTag:CELL_SNAPSHOT_TAG];
     __weak __block LXMTableViewOperationState *weakSelf = self;
     __weak __block NSIndexPath *indexPath = [LXMTableViewState sharedInstance].addingRowIndexPath;
 
-    [self.tableViewGestureRecognizer.helper finishLongPress:recognizer];
+    [self.tableViewGestureRecognizer.recognizerHelper finishLongPress:recognizer];
 
     [UIView animateWithDuration:LXMTableViewRowAnimationDurationShort animations:^{
       CGRect rect = [weakSelf.tableView rectForRowAtIndexPath:indexPath];
@@ -389,7 +391,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
       [CATransaction begin];
       [CATransaction setCompletionBlock:^{
         [weakSelf.tableView lxm_reloadVisibleRowsExceptIndexPaths:@[indexPath]];
-        weakSelf.tableViewGestureRecognizer.helper.snapshot = nil;
+        weakSelf.tableViewGestureRecognizer.recognizerHelper.snapshot = nil;
         weakSelf.tableViewState.addingRowIndexPath = nil;
         [[NSNotificationCenter defaultCenter] postNotificationName:LXMOperationCompleteNotification object:self];
         self.tableViewGestureRecognizer.operationState = self.tableViewGestureRecognizer.operationStateNormal;
@@ -413,7 +415,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 
 
 /// Recoving Operation State
-@interface LXMTableViewOperationStateRecovering <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStateRecovering : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateRecovering
@@ -427,7 +429,7 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
 @end
 
 /// Processing Operation State
-@interface LXMTableViewOperationStateProcessing <LXMTableViewOperationStateProtocol>: LXMTableViewOperationState
+@interface LXMTableViewOperationStateProcessing : LXMTableViewOperationState <LXMTableViewOperationState>
 @end
 
 @implementation LXMTableViewOperationStateProcessing
@@ -528,7 +530,8 @@ NSString* assertFailure(NSString *state, NSString *gesture, NSString *gestureSta
   NSAssert(NO, @"仅能在子类中调用。");
 }
 
-- (void)shouldChangeToOperationState:(id<LXMTableViewOperationStateProtocol>)operationState {
+- (void)switchToOperationState:(id<LXMTableViewOperationState>)operationState {
+
   self.tableViewGestureRecognizer.operationState = operationState;
 }
 
